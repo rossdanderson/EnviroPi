@@ -1,3 +1,5 @@
+package uk.co.coroutines.enviropi
+
 import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
 import java.nio.ByteOrder
@@ -5,8 +7,8 @@ import java.nio.ByteOrder
 class LTR559 {
     companion object {
         const val I2C_ADDR = 0x23
-        val PART_ID = 0x09
-        val REVISION_ID = 0x02
+        val PART_ID = 0x09.toUByte()
+        val REVISION_ID = 0x02.toUByte()
     }
 
     val _als0 = 0
@@ -22,32 +24,43 @@ class LTR559 {
     var _ch0_c = arrayOf(17743, 42785, 5926, 0)
     var _ch1_c = arrayOf(-11059, 19548, -1185, 0)
 
+
     private val device =
         I2CDevice.builder(I2C_ADDR)
             .setController(I2CConstants.CONTROLLER_1)
             .setByteOrder(ByteOrder.LITTLE_ENDIAN)
             .build()
 
-    private val partId
-        get() = device.readByteData(0x86).toUByte()
+    private val psControl = object : MutableRegister(device, 0x81) {
+        var saturationIndicatorEnable: UByte by bitField(0b00100000)
 
-    init {
-        check(partId shr 4 == PART_ID.toUByte())
-        check(partId shr 4 == REVISION_ID.toUByte())
+        var active: Boolean by bitField(0b00000011)
+            .withMappings(
+                0b00.toUByte() to false,
+                0b11.toUByte() to true,
+            )
     }
 
-//    """Library for the LITE-ON LTR559 digital light and proximity sensor."""
-//import time
-//from i2cdevice import Device, Register, BitField
-//from i2cdevice.adapter import Adapter, LookupAdapter, U16ByteSwapAdapter
-//
-//__version__ = '0.1.1'
-//
-//I2C_ADDR = 0x23
-//PART_ID = 0x09
-//REVISION_ID = 0x02
-//
-//
+    private val deviceInfo = object : Register(device, 0x86) {
+
+        val partId: UByte by bitField(0b11110000)
+
+        val revisionId: UByte by bitField(0b00001111)
+    }
+
+    private val manufacturerInfo = object : Register(device, 0x87) {
+
+        val manufacturerId: UByte by bitField(0b11111111)
+    }
+
+    init {
+        check(deviceInfo.partId == PART_ID)
+        check(deviceInfo.revisionId == REVISION_ID)
+        check(manufacturerInfo.manufacturerId == 0x05.toUByte())
+
+        check(!psControl.active)
+    }
+
 //class Bit12Adapter(Adapter):
 //    def _encode(self, value):
 //        """
@@ -65,10 +78,10 @@ class LTR559 {
 //        return ((value & 0xFF00) >> 8) | ((value & 0x000F) << 8)
 //
 //
-//class LTR559:
+//class uk.co.coroutines.enviropi.LTR559:
 //    def __init__(self, i2c_dev=None, enable_interrupts=False, interrupt_pin_polarity=1, timeout=5.0):
-//        """Initialise the LTR559.
-//        This sets up the LTR559 and checks that the Part Number ID matches 0x09 and
+//        """Initialise the uk.co.coroutines.enviropi.LTR559.
+//        This sets up the uk.co.coroutines.enviropi.LTR559 and checks that the Part Number ID matches 0x09 and
 //        that the Revision Number ID matches 0x02. If you come across an unsupported
 //        revision you should raise an Issue at https://github.com/pimoroni/ltr559-python
 //        Several known-good default values are picked during setup, and the interrupt
@@ -246,10 +259,10 @@ class LTR559 {
 //
 //        ))
 //
-//        """Set up the LTR559 sensor"""
+//        """Set up the uk.co.coroutines.enviropi.LTR559 sensor"""
 //        self.part_id = self._ltr559.get('PART_ID')
 //        if self.part_id.part_number != PART_ID or self.part_id.revision != REVISION_ID:
-//            raise RuntimeError("LTR559 not found")
+//            raise RuntimeError("uk.co.coroutines.enviropi.LTR559 not found")
 //
 //        self._ltr559.set('ALS_CONTROL', sw_reset=1)
 //
@@ -367,7 +380,7 @@ class LTR559 {
 //        This is the rate at which light measurements are repeated. For example:
 //        A repeat rate of 1000ms would result in one light measurement every second.
 //        The repeat rate must be equal to or larger than the integration time, if a lower
-//        value is picked then it is automatically reset by the LTR559 to match the chosen
+//        value is picked then it is automatically reset by the uk.co.coroutines.enviropi.LTR559 to match the chosen
 //        integration time.
 //        :param rate_ms: Rate in milliseconds- one of 50, 100, 200, 500, 1000 or 2000
 //        """
@@ -534,7 +547,7 @@ class LTR559 {
 //if __name__ == "__main__":
 //    import sys
 //    delay = float(sys.argv[1]) if len(sys.argv) == 2 and sys.argv[1].isnumeric() else 0.05
-//    ltr559 = LTR559()
+//    ltr559 = uk.co.coroutines.enviropi.LTR559()
 //    try:
 //        while True:
 //            ltr559.update_sensor()
