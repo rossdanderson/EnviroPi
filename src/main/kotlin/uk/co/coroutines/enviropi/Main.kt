@@ -1,14 +1,13 @@
 @file:OptIn(ExperimentalTime::class, FlowPreview::class)
 
-import com.diozero.api.I2CConstants
-import com.diozero.api.I2CDevice
+package uk.co.coroutines.enviropi
+
 import com.diozero.devices.BME280
 import com.diozero.util.Diozero
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import org.tinylog.Logger
-import java.nio.ByteOrder
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
