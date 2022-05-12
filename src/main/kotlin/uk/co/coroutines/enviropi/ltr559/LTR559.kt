@@ -1,7 +1,13 @@
-package uk.co.coroutines.enviropi
+package uk.co.coroutines.enviropi.ltr559
 
 import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
+import uk.co.coroutines.enviropi.BitFieldDelegate.Companion.bitField
+import uk.co.coroutines.enviropi.BitFieldDelegate.Companion.bitFlag
+import uk.co.coroutines.enviropi.MappingDelegate.Companion.withEnum
+import uk.co.coroutines.enviropi.MappingDelegate.Companion.withMappings
+import uk.co.coroutines.enviropi.MutableRegister
+import uk.co.coroutines.enviropi.Register
 import java.nio.ByteOrder
 
 class LTR559 {
@@ -31,26 +37,69 @@ class LTR559 {
             .setByteOrder(ByteOrder.LITTLE_ENDIAN)
             .build()
 
-    private val psControl = object : MutableRegister(device, 0x81) {
-        var saturationIndicatorEnable: UByte by bitField(0b00100000)
+    val lightSensorControl = object : MutableRegister(device, 0x80) {
+        var gain by bitField(0b00011100).withEnum<LightSensorGain>()
+        var swReset by bitFlag(0b00000010)
+        var mode by bitFlag(0b00000001)
+    }
 
-        var active: Boolean by bitField(0b00000011)
+    private val proximitySensorControl = object : MutableRegister(device, 0x81) {
+        var saturationIndicatorEnable by bitFlag(0b00100000)
+
+        val active by bitField(0b00000011)
             .withMappings(
                 0b00.toUByte() to false,
                 0b11.toUByte() to true,
             )
     }
 
+    private val proximitySensorLED = object : MutableRegister(device, 0x82) {
+        var pulseFrequency by bitField(0b11100000).withEnum<ProximitySensorPulseFrequency>()
+        var dutyCycle by bitField(0b00011000).withEnum<ProximitySensorDutyCycle>()
+        var current by bitField(0b00000111).withEnum<ProximitySensorCurrent>()
+    }
+
+    private val proximitySensorPulsesCount = object : MutableRegister(device, 0x83) {
+        var count by bitField(0b00001111)
+    }
+
+    private val proximitySensorMeasureRate = object : MutableRegister(device, 0x84) {
+        var rate by bitField(0b00001111).withEnum<ProximitySensorMeasureRate>()
+    }
+
+//    private val alsMeasureRate = object : MutableRegister(device, 0x85) {
+//        var integrationTime =
+//    }
+//
+//            Register('ALS_MEAS_RATE', 0x85, fields=(
+//                BitField('integration_time_ms', 0b00111000, adapter=LookupAdapter({
+//                    100: 0b000,
+//                    50: 0b001,
+//                    200: 0b010,
+//                    400: 0b011,
+//                    150: 0b100,
+//                    250: 0b101,
+//                    300: 0b110,
+//                    350: 0b111})),
+//                BitField('repeat_rate_ms', 0b00000111, adapter=LookupAdapter({
+//                    50: 0b000,
+//                    100: 0b001,
+//                    200: 0b010,
+//                    500: 0b011,
+//                    1000: 0b100,
+//                    2000: 0b101}))
+//            )),
+
     private val deviceInfo = object : Register(device, 0x86) {
 
-        val partId: UByte by bitField(0b11110000)
+        val partId by bitField(0b11110000)
 
-        val revisionId: UByte by bitField(0b00001111)
+        val revisionId by bitField(0b00001111)
     }
 
     private val manufacturerInfo = object : Register(device, 0x87) {
 
-        val manufacturerId: UByte by bitField(0b11111111)
+        val manufacturerId by bitField(0b11111111)
     }
 
     init {
@@ -58,7 +107,7 @@ class LTR559 {
         check(deviceInfo.revisionId == REVISION_ID)
         check(manufacturerInfo.manufacturerId == 0x05.toUByte())
 
-        check(!psControl.active)
+        check(!proximitySensorControl.active)
     }
 
 //class Bit12Adapter(Adapter):
@@ -78,10 +127,10 @@ class LTR559 {
 //        return ((value & 0xFF00) >> 8) | ((value & 0x000F) << 8)
 //
 //
-//class uk.co.coroutines.enviropi.LTR559:
+//class LTR559:
 //    def __init__(self, i2c_dev=None, enable_interrupts=False, interrupt_pin_polarity=1, timeout=5.0):
-//        """Initialise the uk.co.coroutines.enviropi.LTR559.
-//        This sets up the uk.co.coroutines.enviropi.LTR559 and checks that the Part Number ID matches 0x09 and
+//        """Initialise the LTR559.
+//        This sets up the LTR559 and checks that the Part Number ID matches 0x09 and
 //        that the Revision Number ID matches 0x02. If you come across an unsupported
 //        revision you should raise an Issue at https://github.com/pimoroni/ltr559-python
 //        Several known-good default values are picked during setup, and the interrupt
@@ -114,6 +163,7 @@ class LTR559 {
 //                BitField('sw_reset', 0b00000010),
 //                BitField('mode', 0b00000001)
 //            )),
+    // DONE ^
 //
 //            Register('PS_CONTROL', 0x81, fields=(
 //                BitField('saturation_indicator_enable', 0b00100000),
@@ -121,6 +171,7 @@ class LTR559 {
 //                    False: 0b00,
 //                    True: 0b11}))
 //            )),
+    // DONE ^
 //
 //            Register('PS_LED', 0x82, fields=(
 //                BitField('pulse_freq_khz', 0b11100000, adapter=LookupAdapter({
@@ -144,10 +195,12 @@ class LTR559 {
 //                    50: 0b011,
 //                    100: 0b100}))
 //            )),
+    // DONE ^
 //
 //            Register('PS_N_PULSES', 0x83, fields=(
 //                BitField('count', 0b00001111),
 //            )),
+    // DONE ^
 //
 //            Register('PS_MEAS_RATE', 0x84, fields=(
 //                BitField('rate_ms', 0b00001111, adapter=LookupAdapter({
@@ -184,10 +237,12 @@ class LTR559 {
 //                BitField('part_number', 0b11110000),  # Should be 0x09H
 //                BitField('revision', 0b00001111)      # Should be 0x02H
 //            ), read_only=True, volatile=False),
+    // DONE ^
 //
 //            Register('MANUFACTURER_ID', 0x87, fields=(
 //                BitField('manufacturer_id', 0b11111111),  # Should be 0x05H
 //            ), read_only=True),
+    // DONE ^
 //
 //            # This will address 0x88, 0x89, 0x8A and 0x8B as a continuous 32bit register
 //            Register('ALS_DATA', 0x88, fields=(
@@ -259,10 +314,10 @@ class LTR559 {
 //
 //        ))
 //
-//        """Set up the uk.co.coroutines.enviropi.LTR559 sensor"""
+//        """Set up the LTR559 sensor"""
 //        self.part_id = self._ltr559.get('PART_ID')
 //        if self.part_id.part_number != PART_ID or self.part_id.revision != REVISION_ID:
-//            raise RuntimeError("uk.co.coroutines.enviropi.LTR559 not found")
+//            raise RuntimeError("LTR559 not found")
 //
 //        self._ltr559.set('ALS_CONTROL', sw_reset=1)
 //
@@ -380,7 +435,7 @@ class LTR559 {
 //        This is the rate at which light measurements are repeated. For example:
 //        A repeat rate of 1000ms would result in one light measurement every second.
 //        The repeat rate must be equal to or larger than the integration time, if a lower
-//        value is picked then it is automatically reset by the uk.co.coroutines.enviropi.LTR559 to match the chosen
+//        value is picked then it is automatically reset by the LTR559 to match the chosen
 //        integration time.
 //        :param rate_ms: Rate in milliseconds- one of 50, 100, 200, 500, 1000 or 2000
 //        """
@@ -547,7 +602,7 @@ class LTR559 {
 //if __name__ == "__main__":
 //    import sys
 //    delay = float(sys.argv[1]) if len(sys.argv) == 2 and sys.argv[1].isnumeric() else 0.05
-//    ltr559 = uk.co.coroutines.enviropi.LTR559()
+//    ltr559 = LTR559()
 //    try:
 //        while True:
 //            ltr559.update_sensor()
