@@ -6,8 +6,8 @@ import uk.co.coroutines.enviropi.BitField.Companion.bitField
 import uk.co.coroutines.enviropi.BitField.Companion.bitFlag
 import uk.co.coroutines.enviropi.MappingBitField.Companion.withEnum
 import uk.co.coroutines.enviropi.MappingBitField.Companion.withMappings
-import uk.co.coroutines.enviropi.MutableRegister
-import uk.co.coroutines.enviropi.Register
+import uk.co.coroutines.enviropi.MutableByteRegister
+import uk.co.coroutines.enviropi.ByteRegister
 import java.nio.ByteOrder
 
 class LTR559 {
@@ -37,78 +37,60 @@ class LTR559 {
             .setByteOrder(ByteOrder.LITTLE_ENDIAN)
             .build()
 
-    val lightSensorControl = object : MutableRegister(device, 0x80) {
+    val lightSensorControl = object : MutableByteRegister(device, 0x80) {
         var gain by bitField(0b00011100).withEnum<LightSensorGain>()
         var swReset by bitFlag(0b00000010)
         var mode by bitFlag(0b00000001)
     }
 
-    private val proximitySensorControl = object : MutableRegister(device, 0x81) {
+    private val proximitySensorControl = object : MutableByteRegister(device, 0x81) {
         var saturationIndicatorEnable by bitFlag(0b00100000)
 
         val active by bitField(0b00000011)
             .withMappings(
-                0b00.toUByte() to false,
-                0b11.toUByte() to true,
+                0b00 to false,
+                0b11 to true,
             )
     }
 
-    private val proximitySensorLED = object : MutableRegister(device, 0x82) {
+    private val proximitySensorLED = object : MutableByteRegister(device, 0x82) {
         var pulseFrequency by bitField(0b11100000).withEnum<ProximitySensorPulseFrequency>()
         var dutyCycle by bitField(0b00011000).withEnum<ProximitySensorDutyCycle>()
         var current by bitField(0b00000111).withEnum<ProximitySensorCurrent>()
     }
 
-    private val proximitySensorPulsesCount = object : MutableRegister(device, 0x83) {
+    private val proximitySensorPulsesCount = object : MutableByteRegister(device, 0x83) {
         var count by bitField(0b00001111)
     }
 
-    private val proximitySensorMeasureRate = object : MutableRegister(device, 0x84) {
+    private val proximitySensorMeasureRate = object : MutableByteRegister(device, 0x84) {
         var rate by bitField(0b00001111).withEnum<ProximitySensorMeasureRate>()
     }
 
-    init {
-        with(proximitySensorLED) {
-            pulseFrequency = ProximitySensorPulseFrequency.`40KHz`
-            dutyCycle = ProximitySensorDutyCycle.`0_25`
-            current = ProximitySensorCurrent.`20mA`
-            flush()
-        }
+    private val lightSensorMeasureRate = object : MutableByteRegister(device, 0x85) {
+        var integrationTime by bitField(0b00111000).withEnum<LightSensorIntegrationTime>()
+        var repeatRate by bitField(0b00000111).withEnum<LightSensorRepeatRate>()
     }
 
-//    private val alsMeasureRate = object : MutableRegister(device, 0x85) {
-//        var integrationTime =
-//    }
-//
-//            Register('ALS_MEAS_RATE', 0x85, fields=(
-//                BitField('integration_time_ms', 0b00111000, adapter=LookupAdapter({
-//                    100: 0b000,
-//                    50: 0b001,
-//                    200: 0b010,
-//                    400: 0b011,
-//                    150: 0b100,
-//                    250: 0b101,
-//                    300: 0b110,
-//                    350: 0b111})),
-//                BitField('repeat_rate_ms', 0b00000111, adapter=LookupAdapter({
-//                    50: 0b000,
-//                    100: 0b001,
-//                    200: 0b010,
-//                    500: 0b011,
-//                    1000: 0b100,
-//                    2000: 0b101}))
-//            )),
-
-    private val deviceInfo = object : Register(device, 0x86) {
+    private val deviceInfo = object : ByteRegister(device, 0x86) {
 
         val partId by bitField(0b11110000)
 
         val revisionId by bitField(0b00001111)
     }
 
-    private val manufacturerInfo = object : Register(device, 0x87) {
+    private val manufacturerInfo = object : ByteRegister(device, 0x87) {
 
         val manufacturerId by bitField(0b11111111)
+    }
+
+    private val status = object : ByteRegister(device, 0x8C) {
+        val lightSensorDataValid by bitFlag(0b10000000)
+        val lightSensorGain by bitField(0b01110000).withEnum<LightSensorGain>()
+        val lightSensorInterrupt by bitFlag(0b00001000)
+        val lightSensorData by bitFlag(0b00000100)
+        val proximitySensorInterrupt by bitFlag(0b00000010)
+        val proximitySensorData by bitFlag(0b00000001)
     }
 
     init {
@@ -222,6 +204,7 @@ class LTR559 {
 //                    1000: 0b0101,
 //                    2000: 0b0110})),
 //            )),
+    // DONE ^
 //
 //            Register('ALS_MEAS_RATE', 0x85, fields=(
 //                BitField('integration_time_ms', 0b00111000, adapter=LookupAdapter({
@@ -241,6 +224,7 @@ class LTR559 {
 //                    1000: 0b100,
 //                    2000: 0b101}))
 //            )),
+    // DONE ^
 //
 //            Register('PART_ID', 0x86, fields=(
 //                BitField('part_number', 0b11110000),  # Should be 0x09H
@@ -252,7 +236,7 @@ class LTR559 {
 //                BitField('manufacturer_id', 0b11111111),  # Should be 0x05H
 //            ), read_only=True),
     // DONE ^
-//
+// TODO
 //            # This will address 0x88, 0x89, 0x8A and 0x8B as a continuous 32bit register
 //            Register('ALS_DATA', 0x88, fields=(
 //                BitField('ch1', 0xFFFF0000, bit_width=16, adapter=U16ByteSwapAdapter()),
@@ -273,14 +257,16 @@ class LTR559 {
 //                BitField('ps_interrupt', 0b00000010),   # True = Interrupt is active
 //                BitField('ps_data', 0b00000001)         # True = New data available
 //            ), read_only=True),
+//    ^ DONE
 //
+//  TODO
 //            # The PS data is actually an 11bit value but since B3 is reserved it'll (probably) read as 0
 //            # We could mask the result if necessary
 //            Register('PS_DATA', 0x8D, fields=(
 //                BitField('ch0', 0xFF0F, adapter=Bit12Adapter()),
 //                BitField('saturation', 0x0080)
 //            ), bit_width=16, read_only=True),
-//
+//  TODO
 //            # INTERRUPT allows the interrupt pin and function behaviour to be configured.
 //            Register('INTERRUPT', 0x8F, fields=(
 //                BitField('polarity', 0b00000100),
@@ -290,18 +276,18 @@ class LTR559 {
 //                    'als': 0b10,
 //                    'als+ps': 0b11}))
 //            )),
-//
+//  TODO
 //            Register('PS_THRESHOLD', 0x90, fields=(
 //                BitField('upper', 0xFF0F0000, adapter=Bit12Adapter()),
 //                BitField('lower', 0x0000FF0F, adapter=Bit12Adapter())
 //            ), bit_width=32),
-//
+//  TODO
 //            # PS_OFFSET defines the measurement offset value to correct for proximity
 //            # offsets caused by device variations, crosstalk and other environmental factors.
 //            Register('PS_OFFSET', 0x94, fields=(
 //                BitField('offset', 0x03FF),  # Last two bits of 0x94, full 8 bits of 0x95
 //            ), bit_width=16),
-//
+//  TODO
 //            # Defines the upper and lower limits of the ALS reading.
 //            # An interrupt is triggered if values fall outside of this range.
 //            # See also INTERRUPT_PERSIST.
@@ -309,10 +295,9 @@ class LTR559 {
 //                BitField('upper', 0xFFFF0000, adapter=U16ByteSwapAdapter(), bit_width=16),
 //                BitField('lower', 0x0000FFFF, adapter=U16ByteSwapAdapter(), bit_width=16)
 //            ), bit_width=32),
-//
+//  TODO
 //            # This register controls how many values must fall outside of the range defined
 //            # by upper and lower threshold limits before the interrupt is asserted.
-//
 //            # In the case of both PS and ALS, a 0 value indicates that every value outside
 //            # the threshold range should be counted.
 //            # Values therein map to n+1 , ie: 0b0001 requires two consecutive values.
