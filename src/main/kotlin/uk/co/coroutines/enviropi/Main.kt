@@ -21,7 +21,7 @@ data class SensorData(
 fun main(): Unit = runBlocking {
     try {
         LTR559()
-        combine(
+//        combine(
             flow {
                 BME280().use { bme280 ->
                     while (true) {
@@ -32,10 +32,10 @@ fun main(): Unit = runBlocking {
                             }
                     }
                 }
-            },
+            }
             // Light sensor,
             // Noise sensor,
-        ) { it[0] }
+//        ) { it[0] }
             .sample(30.seconds)
             .onEach { sensorData ->
                 Logger.info(

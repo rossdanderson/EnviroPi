@@ -2,10 +2,10 @@ package uk.co.coroutines.enviropi.ltr559
 
 import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
-import uk.co.coroutines.enviropi.BitFieldDelegate.Companion.bitField
-import uk.co.coroutines.enviropi.BitFieldDelegate.Companion.bitFlag
-import uk.co.coroutines.enviropi.MappingDelegate.Companion.withEnum
-import uk.co.coroutines.enviropi.MappingDelegate.Companion.withMappings
+import uk.co.coroutines.enviropi.BitField.Companion.bitField
+import uk.co.coroutines.enviropi.BitField.Companion.bitFlag
+import uk.co.coroutines.enviropi.MappingBitField.Companion.withEnum
+import uk.co.coroutines.enviropi.MappingBitField.Companion.withMappings
 import uk.co.coroutines.enviropi.MutableRegister
 import uk.co.coroutines.enviropi.Register
 import java.nio.ByteOrder
@@ -65,6 +65,15 @@ class LTR559 {
 
     private val proximitySensorMeasureRate = object : MutableRegister(device, 0x84) {
         var rate by bitField(0b00001111).withEnum<ProximitySensorMeasureRate>()
+    }
+
+    init {
+        with(proximitySensorLED) {
+            pulseFrequency = ProximitySensorPulseFrequency.`40KHz`
+            dutyCycle = ProximitySensorDutyCycle.`0_25`
+            current = ProximitySensorCurrent.`20mA`
+            flush()
+        }
     }
 
 //    private val alsMeasureRate = object : MutableRegister(device, 0x85) {
