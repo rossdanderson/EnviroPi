@@ -2,13 +2,13 @@ package uk.co.coroutines.enviropi.ltr559
 
 import uk.co.coroutines.enviropi.FieldMapping
 
-enum class ProximitySensorMeasureRate(override val value: Int): FieldMapping {
-    `10ms`(0b1000),
-    `50ms`(0b0000),
-    `70ms`(0b0001),
-    `100ms`(0b0010),
-    `200ms`(0b0011),
-    `500ms`(0b0100),
-    `1000ms`(0b0101),
-    `2000ms`(0b0110),
+enum class ProximitySensorMeasureRate(override val value: UInt): FieldMapping {
+    `10ms`(0b1000u),
+    `50ms`(0b0000u),
+    `70ms`(0b0001u),
+    `100ms`(0b0010u),
+    `200ms`(0b0011u),
+    `500ms`(0b0100u),
+    `1000ms`(0b0101u),
+    `2000ms`(0b0110u),
 }

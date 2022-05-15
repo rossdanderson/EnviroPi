@@ -8,6 +8,8 @@ import uk.co.coroutines.enviropi.MappingBitField.Companion.withEnum
 import uk.co.coroutines.enviropi.MappingBitField.Companion.withMappings
 import uk.co.coroutines.enviropi.MutableByteRegister
 import uk.co.coroutines.enviropi.ByteRegister
+import uk.co.coroutines.enviropi.IntRegister
+import uk.co.coroutines.enviropi.MutableIntRegister
 import java.nio.ByteOrder
 
 class LTR559 {
@@ -38,60 +40,74 @@ class LTR559 {
             .build()
 
     val lightSensorControl = object : MutableByteRegister(device, 0x80) {
-        var gain by bitField(0b00011100).withEnum<LightSensorGain>()
-        var swReset by bitFlag(0b00000010)
-        var mode by bitFlag(0b00000001)
+        var gain by bitField(0b00011100u).withEnum<LightSensorGain>()
+        var swReset by bitFlag(0b00000010u)
+        var mode by bitFlag(0b00000001u)
     }
 
     private val proximitySensorControl = object : MutableByteRegister(device, 0x81) {
-        var saturationIndicatorEnable by bitFlag(0b00100000)
+        var saturationIndicatorEnable by bitFlag(0b00100000u)
 
-        val active by bitField(0b00000011)
+        val active by bitField(0b00000011u)
             .withMappings(
-                0b00 to false,
-                0b11 to true,
+                0b00u to false,
+                0b11u to true,
             )
     }
 
     private val proximitySensorLED = object : MutableByteRegister(device, 0x82) {
-        var pulseFrequency by bitField(0b11100000).withEnum<ProximitySensorPulseFrequency>()
-        var dutyCycle by bitField(0b00011000).withEnum<ProximitySensorDutyCycle>()
-        var current by bitField(0b00000111).withEnum<ProximitySensorCurrent>()
+        var pulseFrequency by bitField(0b11100000u).withEnum<ProximitySensorPulseFrequency>()
+        var dutyCycle by bitField(0b00011000u).withEnum<ProximitySensorDutyCycle>()
+        var current by bitField(0b00000111u).withEnum<ProximitySensorCurrent>()
     }
 
     private val proximitySensorPulsesCount = object : MutableByteRegister(device, 0x83) {
-        var count by bitField(0b00001111)
+        var count by bitField(0b00001111u)
     }
 
     private val proximitySensorMeasureRate = object : MutableByteRegister(device, 0x84) {
-        var rate by bitField(0b00001111).withEnum<ProximitySensorMeasureRate>()
+        var rate by bitField(0b00001111u).withEnum<ProximitySensorMeasureRate>()
     }
 
     private val lightSensorMeasureRate = object : MutableByteRegister(device, 0x85) {
-        var integrationTime by bitField(0b00111000).withEnum<LightSensorIntegrationTime>()
-        var repeatRate by bitField(0b00000111).withEnum<LightSensorRepeatRate>()
+        var integrationTime by bitField(0b00111000u).withEnum<LightSensorIntegrationTime>()
+        var repeatRate by bitField(0b00000111u).withEnum<LightSensorRepeatRate>()
     }
 
     private val deviceInfo = object : ByteRegister(device, 0x86) {
 
-        val partId by bitField(0b11110000)
+        val partId by bitField(0b11110000u)
 
-        val revisionId by bitField(0b00001111)
+        val revisionId by bitField(0b00001111u)
     }
 
     private val manufacturerInfo = object : ByteRegister(device, 0x87) {
 
-        val manufacturerId by bitField(0b11111111)
+        val manufacturerId by bitField(0b11111111u)
+    }
+
+
+//            # This will address 0x88, 0x89, 0x8A and 0x8B as a continuous 32bit register
+//            Register('ALS_DATA', 0x88, fields=(
+//                BitField('ch1', 0xFFFF0000, bit_width=16, adapter=U16ByteSwapAdapter()),
+//                BitField('ch0', 0x0000FFFF, bit_width=16, adapter=U16ByteSwapAdapter())
+//            ), read_only=True, bit_width=32),
+
+    private val lightSensorData = object : IntRegister(device, 0x88) {
+        val ch1 = bitField(0xFFFF0000u)
+        val ch2 = bitField(0x0000FFFFu)
     }
 
     private val status = object : ByteRegister(device, 0x8C) {
-        val lightSensorDataValid by bitFlag(0b10000000)
-        val lightSensorGain by bitField(0b01110000).withEnum<LightSensorGain>()
-        val lightSensorInterrupt by bitFlag(0b00001000)
-        val lightSensorData by bitFlag(0b00000100)
-        val proximitySensorInterrupt by bitFlag(0b00000010)
-        val proximitySensorData by bitFlag(0b00000001)
+        val lightSensorDataValid by bitFlag(0b10000000u)
+        val lightSensorGain by bitField(0b01110000u).withEnum<LightSensorGain>()
+        val lightSensorInterrupt by bitFlag(0b00001000u)
+        val lightSensorData by bitFlag(0b00000100u)
+        val proximitySensorInterrupt by bitFlag(0b00000010u)
+        val proximitySensorData by bitFlag(0b00000001u)
     }
+
+
 
     init {
         check(deviceInfo.partId == PART_ID)
