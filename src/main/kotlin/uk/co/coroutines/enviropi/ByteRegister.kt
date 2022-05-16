@@ -2,10 +2,11 @@ package uk.co.coroutines.enviropi
 
 import com.diozero.api.I2CDevice
 
-abstract class ByteRegister(private val device: I2CDevice, private val register: Int) {
+abstract class ByteRegister(private val device: I2CDevice, private val register: Int) :
+    IRegister<UByte> {
 
     protected var backingValue: UByte? = null
-    open val value: UByte
+    override val value: UByte
         get() = backingValue ?: device.readByteData(register).toUByte().also { backingValue = it }
 
     fun resetCache() {
@@ -13,7 +14,9 @@ abstract class ByteRegister(private val device: I2CDevice, private val register:
     }
 }
 
-abstract class MutableByteRegister(private val device: I2CDevice, private val register: Int) : ByteRegister(device, register) {
+abstract class MutableByteRegister(private val device: I2CDevice, private val register: Int) :
+    ByteRegister(device, register),
+    IMutableRegister<UByte> {
 
     override var value: UByte
         get() = super.value

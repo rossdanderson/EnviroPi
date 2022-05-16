@@ -4,12 +4,12 @@ import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
 import uk.co.coroutines.enviropi.BitField.Companion.bitField
 import uk.co.coroutines.enviropi.BitField.Companion.bitFlag
-import uk.co.coroutines.enviropi.MappingBitField.Companion.withEnum
-import uk.co.coroutines.enviropi.MappingBitField.Companion.withMappings
+import uk.co.coroutines.enviropi.LookupBitField.Companion.withEnum
+import uk.co.coroutines.enviropi.LookupBitField.Companion.withLookup
 import uk.co.coroutines.enviropi.MutableByteRegister
 import uk.co.coroutines.enviropi.ByteRegister
+import uk.co.coroutines.enviropi.ByteSwappingBitField.Companion.swapBytes
 import uk.co.coroutines.enviropi.IntRegister
-import uk.co.coroutines.enviropi.MutableIntRegister
 import java.nio.ByteOrder
 
 class LTR559 {
@@ -49,7 +49,7 @@ class LTR559 {
         var saturationIndicatorEnable by bitFlag(0b00100000u)
 
         val active by bitField(0b00000011u)
-            .withMappings(
+            .withLookup(
                 0b00u to false,
                 0b11u to true,
             )
@@ -94,8 +94,8 @@ class LTR559 {
 //            ), read_only=True, bit_width=32),
 
     private val lightSensorData = object : IntRegister(device, 0x88) {
-        val ch1 = bitField(0xFFFF0000u)
-        val ch2 = bitField(0x0000FFFFu)
+        val ch1 by bitField(0xFFFF0000u).swapBytes()
+        val ch2 by bitField(0x0000FFFFu).swapBytes()
     }
 
     private val status = object : ByteRegister(device, 0x8C) {

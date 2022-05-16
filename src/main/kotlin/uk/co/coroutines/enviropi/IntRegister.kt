@@ -3,11 +3,11 @@ package uk.co.coroutines.enviropi
 import com.diozero.api.I2CDevice
 import java.nio.ByteBuffer
 
-abstract class IntRegister(private val device: I2CDevice, private val register: Int) {
+abstract class IntRegister(private val device: I2CDevice, private val register: Int) : IRegister<UInt> {
     protected val byteBuffer: ByteBuffer = ByteBuffer.allocate(4)
 
     protected var backingValue: UInt? = null
-    open val value: UInt
+    override val value: UInt
         get() = backingValue ?: run {
             device.readI2CBlockData(register, byteBuffer.array())
             byteBuffer.int.toUInt().also { backingValue = it }
@@ -19,7 +19,8 @@ abstract class IntRegister(private val device: I2CDevice, private val register: 
 }
 
 abstract class MutableIntRegister(private val device: I2CDevice, private val register: Int) :
-    IntRegister(device, register) {
+    IntRegister(device, register),
+    IMutableRegister<UInt> {
 
     override var value: UInt
         get() = super.value
