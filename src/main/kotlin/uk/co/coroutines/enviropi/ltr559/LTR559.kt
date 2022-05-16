@@ -2,14 +2,14 @@ package uk.co.coroutines.enviropi.ltr559
 
 import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
-import uk.co.coroutines.enviropi.BitField.Companion.bitField
-import uk.co.coroutines.enviropi.BitField.Companion.bitFlag
-import uk.co.coroutines.enviropi.LookupBitField.Companion.withEnum
-import uk.co.coroutines.enviropi.LookupBitField.Companion.withLookup
-import uk.co.coroutines.enviropi.MutableByteRegister
+import uk.co.coroutines.enviropi.BitFieldMask.Companion.mask
 import uk.co.coroutines.enviropi.ByteRegister
 import uk.co.coroutines.enviropi.ByteSwappingBitField.Companion.swapBytes
+import uk.co.coroutines.enviropi.FocussedBitField.Companion.asShort
 import uk.co.coroutines.enviropi.IntRegister
+import uk.co.coroutines.enviropi.LookupBitField.Companion.asBoolean
+import uk.co.coroutines.enviropi.LookupBitField.Companion.lookup
+import uk.co.coroutines.enviropi.MutableByteRegister
 import java.nio.ByteOrder
 
 class LTR559 {
@@ -26,8 +26,8 @@ class LTR559 {
     var _ratio = 100
 
     // Non default
-    var _gain = 4  // 4x gain = 0.25 to 16k lux
-    var _integration_time = 50
+    var _gain = LightSensorGain.`4`  // 4x gain = 0.25 to 16k lux
+    var _integration_time = LightSensorIntegrationTime.`50ms`
 
     var _ch0_c = arrayOf(17743, 42785, 5926, 0)
     var _ch1_c = arrayOf(-11059, 19548, -1185, 0)
@@ -40,74 +40,65 @@ class LTR559 {
             .build()
 
     val lightSensorControl = object : MutableByteRegister(device, 0x80) {
-        var gain by bitField(0b00011100u).withEnum<LightSensorGain>()
-        var swReset by bitFlag(0b00000010u)
-        var mode by bitFlag(0b00000001u)
+        var gain: LightSensorGain by mask(0b00011100u).lookup()
+        var swReset: Boolean by mask(0b00000010u).asBoolean()
+        var mode: Boolean by mask(0b00000001u).asBoolean()
     }
 
     private val proximitySensorControl = object : MutableByteRegister(device, 0x81) {
-        var saturationIndicatorEnable by bitFlag(0b00100000u)
+        var saturationIndicatorEnable: Boolean by mask(0b00100000u).asBoolean()
 
-        val active by bitField(0b00000011u)
-            .withLookup(
+        val active: Boolean by mask(0b00000011u)
+            .lookup(
                 0b00u to false,
                 0b11u to true,
             )
     }
 
     private val proximitySensorLED = object : MutableByteRegister(device, 0x82) {
-        var pulseFrequency by bitField(0b11100000u).withEnum<ProximitySensorPulseFrequency>()
-        var dutyCycle by bitField(0b00011000u).withEnum<ProximitySensorDutyCycle>()
-        var current by bitField(0b00000111u).withEnum<ProximitySensorCurrent>()
+        var pulseFrequency: ProximitySensorPulseFrequency by mask(0b11100000u).lookup()
+        var dutyCycle: ProximitySensorDutyCycle by mask(0b00011000u).lookup()
+        var current: ProximitySensorCurrent by mask(0b00000111u).lookup()
     }
 
     private val proximitySensorPulsesCount = object : MutableByteRegister(device, 0x83) {
-        var count by bitField(0b00001111u)
+        var count: UByte by mask(0b00001111u)
     }
 
     private val proximitySensorMeasureRate = object : MutableByteRegister(device, 0x84) {
-        var rate by bitField(0b00001111u).withEnum<ProximitySensorMeasureRate>()
+        var rate: ProximitySensorMeasureRate by mask(0b00001111u).lookup()
     }
 
     private val lightSensorMeasureRate = object : MutableByteRegister(device, 0x85) {
-        var integrationTime by bitField(0b00111000u).withEnum<LightSensorIntegrationTime>()
-        var repeatRate by bitField(0b00000111u).withEnum<LightSensorRepeatRate>()
+        var integrationTime: LightSensorIntegrationTime by mask(0b00111000u).lookup()
+        var repeatRate: LightSensorRepeatRate by mask(0b00000111u).lookup()
     }
 
     private val deviceInfo = object : ByteRegister(device, 0x86) {
 
-        val partId by bitField(0b11110000u)
+        val partId: UByte by mask(0b11110000u)
 
-        val revisionId by bitField(0b00001111u)
+        val revisionId: UByte by mask(0b00001111u)
     }
 
     private val manufacturerInfo = object : ByteRegister(device, 0x87) {
 
-        val manufacturerId by bitField(0b11111111u)
+        val manufacturerId: UByte by mask(0b11111111u)
     }
 
-
-//            # This will address 0x88, 0x89, 0x8A and 0x8B as a continuous 32bit register
-//            Register('ALS_DATA', 0x88, fields=(
-//                BitField('ch1', 0xFFFF0000, bit_width=16, adapter=U16ByteSwapAdapter()),
-//                BitField('ch0', 0x0000FFFF, bit_width=16, adapter=U16ByteSwapAdapter())
-//            ), read_only=True, bit_width=32),
-
     private val lightSensorData = object : IntRegister(device, 0x88) {
-        val ch1 by bitField(0xFFFF0000u).swapBytes()
-        val ch2 by bitField(0x0000FFFFu).swapBytes()
+        val ch1: UShort by mask(0xFFFF0000u).asShort().swapBytes()
+        val ch2: UShort by mask(0x0000FFFFu).asShort().swapBytes()
     }
 
     private val status = object : ByteRegister(device, 0x8C) {
-        val lightSensorDataValid by bitFlag(0b10000000u)
-        val lightSensorGain by bitField(0b01110000u).withEnum<LightSensorGain>()
-        val lightSensorInterrupt by bitFlag(0b00001000u)
-        val lightSensorData by bitFlag(0b00000100u)
-        val proximitySensorInterrupt by bitFlag(0b00000010u)
-        val proximitySensorData by bitFlag(0b00000001u)
+        val lightSensorDataValid: Boolean by mask(0b10000000u).asBoolean()
+        val lightSensorGain: LightSensorGain by mask(0b01110000u).lookup()
+        val lightSensorInterrupt: Boolean by mask(0b00001000u).asBoolean()
+        val lightSensorData: Boolean by mask(0b00000100u).asBoolean()
+        val proximitySensorInterrupt: Boolean by mask(0b00000010u).asBoolean()
+        val proximitySensorData: Boolean by mask(0b00000001u).asBoolean()
     }
-
-
 
     init {
         check(deviceInfo.partId == PART_ID)
@@ -252,12 +243,13 @@ class LTR559 {
 //                BitField('manufacturer_id', 0b11111111),  # Should be 0x05H
 //            ), read_only=True),
     // DONE ^
-// TODO
+//
 //            # This will address 0x88, 0x89, 0x8A and 0x8B as a continuous 32bit register
 //            Register('ALS_DATA', 0x88, fields=(
 //                BitField('ch1', 0xFFFF0000, bit_width=16, adapter=U16ByteSwapAdapter()),
 //                BitField('ch0', 0x0000FFFF, bit_width=16, adapter=U16ByteSwapAdapter())
 //            ), read_only=True, bit_width=32),
+    // DONE ^
 //
 //            Register('ALS_PS_STATUS', 0x8C, fields=(
 //                BitField('als_data_valid', 0b10000000),

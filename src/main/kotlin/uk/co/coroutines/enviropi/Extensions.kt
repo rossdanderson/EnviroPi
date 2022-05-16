@@ -1,123 +1,134 @@
 package uk.co.coroutines.enviropi
 
-import uk.co.coroutines.enviropi.LookupBitField.Companion.withLookup
 import kotlin.reflect.KProperty
 
 interface FieldMapping {
     val value: UInt
 }
 
-interface IBitField {
-    operator fun getValue(register: ByteRegister, property: KProperty<*>): UByte
+interface IBitField<N, O> {
 
-    operator fun setValue(register: MutableByteRegister, property: KProperty<*>, bits: UByte)
+    val mask: UInt
+    val toUInt: O.() -> UInt
+    val fromUInt: UInt.() -> O
+    val trailingZeros: Int
 
-    operator fun getValue(register: ShortRegister, property: KProperty<*>): UShort
+    operator fun getValue(register: IRegister<N>, property: KProperty<*>): O
 
-    operator fun setValue(register: MutableShortRegister, property: KProperty<*>, bits: UShort)
-
-    operator fun getValue(register: IntRegister, property: KProperty<*>): UInt
-
-    operator fun setValue(register: MutableIntRegister, property: KProperty<*>, bits: UInt)
+    operator fun setValue(register: IMutableRegister<N>, property: KProperty<*>, value: O)
 }
 
-class BitField private constructor(private val mask: UInt) : IBitField {
+class BitFieldMask<N> private constructor(
+    mask: N,
+    override val toUInt: N.() -> UInt,
+    override val fromUInt: UInt.() -> N,
+) : IBitField<N, N> {
+
+    init {
+        // TODO check bits are contiguous
+    }
 
     companion object {
+        fun ByteRegister.mask(mask: UByte): IBitField<UByte, UByte> = BitFieldMask(mask, UByte::toUInt, UInt::toUByte)
 
-        fun ByteRegister.bitField(mask: UByte) = BitField(mask.toUInt())
+        fun ShortRegister.mask(mask: UShort): IBitField<UShort, UShort> =
+            BitFieldMask(mask, UShort::toUInt, UInt::toUShort)
 
-        fun ShortRegister.bitField(mask: UShort) = BitField(mask.toUInt())
-
-        fun IntRegister.bitField(mask: UInt) = BitField(mask)
-
-        fun bitFlag(mask: UInt): LookupBitField<Boolean> {
-            check(mask.countOneBits() == 1)
-            return BitField(mask)
-                .withLookup(
-                    1u to true,
-                    0u to false
-                )
-        }
+        fun IntRegister.mask(mask: UInt): IBitField<UInt, UInt> = BitFieldMask(mask, UInt::toUInt, UInt::toUInt)
     }
 
-    private val trailingZeros: Int = mask.countTrailingZeroBits()
-    private val invMask = mask.inv()
+    override val mask = mask.toUInt()
+    private val invMask = mask.toUInt().inv()
+    override val trailingZeros: Int = mask.toUInt().countTrailingZeroBits()
 
-    override operator fun getValue(register: ByteRegister, property: KProperty<*>): UByte = get(register.value)
+    override operator fun getValue(register: IRegister<N>, property: KProperty<*>): N =
+        get(register.value.toUInt()).fromUInt()
 
-    override operator fun setValue(register: MutableByteRegister, property: KProperty<*>, bits: UByte) {
-        register.value = set(register.value, bits)
+    override operator fun setValue(register: IMutableRegister<N>, property: KProperty<*>, value: N) {
+        register.value = set(register.value.toUInt(), value.toUInt()).fromUInt()
     }
-
-    override operator fun getValue(register: ShortRegister, property: KProperty<*>): UShort = get(register.value)
-
-    override operator fun setValue(register: MutableShortRegister, property: KProperty<*>, bits: UShort) {
-        register.value = set(register.value, bits)
-    }
-
-    override operator fun getValue(register: IntRegister, property: KProperty<*>): UInt = get(register.value)
-
-    override operator fun setValue(register: MutableIntRegister, property: KProperty<*>, bits: UInt) {
-        register.value = set(register.value, bits)
-    }
-
-    fun get(byte: UByte): UByte = get(byte.toUInt()).toUByte()
-
-    fun set(byte: UByte, bits: UByte): UByte = set(byte.toUInt(), bits.toUInt()).toUByte()
-
-    fun get(short: UShort): UShort = get(short.toUInt()).toUShort()
-
-    fun set(short: UShort, bits: UShort): UShort = set(short.toUInt(), bits.toUInt()).toUShort()
 
     fun get(int: UInt): UInt = int and mask shr trailingZeros
 
     fun set(int: UInt, bits: UInt): UInt = int and invMask or (bits shl trailingZeros and mask)
 }
 
-class ByteSwappingBitField private constructor(private val bitField: BitField) : IBitField {
+class FocussedBitField<N, O, T> private constructor(
+    private val bitField: IBitField<N, O>,
+    private val from: O.() -> T,
+    private val to: T.() -> O,
+) : IBitField<N, T> {
+    override val mask by bitField::mask
+    override val trailingZeros by bitField::trailingZeros
+
+    // TODO Check mask is the appropriate size
+
     companion object {
-        fun BitField.swapBytes(): ByteSwappingBitField = ByteSwappingBitField(this)
+        @JvmName("focusByteUShortUByte")
+        fun <N> IBitField<N, UShort>.asByte(): IBitField<N, UByte> =
+            FocussedBitField(this, UShort::toUByte, UByte::toUShort)
+
+        @JvmName("focusByteUIntUByte")
+        fun <N> IBitField<N, UInt>.asByte(): IBitField<N, UByte> =
+            FocussedBitField(this, UInt::toUByte, UByte::toUInt)
+
+        fun <N> IBitField<N, UInt>.asShort(): IBitField<N, UShort> =
+            FocussedBitField(this, UInt::toUShort, UShort::toUInt)
     }
 
-    override fun getValue(register: ByteRegister, property: KProperty<*>): UByte =
-        bitField.getValue(register, property)
+    override val toUInt: T.() -> UInt = { bitField.toUInt(to()) }
+    override val fromUInt: UInt.() -> T = { bitField.fromUInt(this).from() }
 
-    override fun setValue(register: MutableByteRegister, property: KProperty<*>, bits: UByte) {
-        bitField.setValue(register, property, bits)
+    override fun getValue(register: IRegister<N>, property: KProperty<*>): T =
+        bitField.getValue(register, property).from()
+
+    override fun setValue(register: IMutableRegister<N>, property: KProperty<*>, value: T) {
+        bitField.setValue(register, property, value.to())
     }
-
-    override operator fun getValue(register: ShortRegister, property: KProperty<*>): UShort = get(register.value)
-
-    override operator fun setValue(register: MutableShortRegister, property: KProperty<*>, bits: UShort) {
-        TODO()
-    }
-
-    override operator fun getValue(register: IntRegister, property: KProperty<*>): UInt = get(register.value)
-
-    override operator fun setValue(register: MutableIntRegister, property: KProperty<*>, bits: UInt) {
-        TODO()
-    }
-
-    private fun get(bytes: UShort): UShort = get(bytes.toUInt()).toUShort()
-
-    private fun get(bytes: UInt): UInt = bytes shr 8 or (bytes and 0xFFu shl 8)
 }
 
-class LookupBitField<T : Any?> private constructor(
-    private val bitField: IByteBitField,
-    pairs: Collection<Pair<UInt, T>>,
-) {
+class ByteSwappingBitField<N> private constructor(private val bitField: IBitField<N, UShort>) :
+    IBitField<N, UShort> by bitField {
     companion object {
-        inline fun <reified T> IByteBitField.withEnum(): LookupBitField<T>
-                where T : FieldMapping, T : Enum<T> =
-            withLookup(enumValues<T>().toList())
+        /**
+         * Swap the byte order within a [UShort]
+         * 1111111100000000 will become 0000000011111111
+         */
+        fun <N> IBitField<N, UShort>.swapBytes(): IBitField<N, UShort> = ByteSwappingBitField(this)
+    }
 
-        fun <T : FieldMapping> IByteBitField.withLookup(mappings: Collection<T>): LookupBitField<T> =
+    override fun getValue(register: IRegister<N>, property: KProperty<*>): UShort =
+        swapBytes(bitField.getValue(register, property).toUInt()).toUShort()
+
+    override fun setValue(register: IMutableRegister<N>, property: KProperty<*>, value: UShort) {
+        bitField.setValue(register, property, swapBytes(value.toUInt()).toUShort())
+    }
+
+    private fun swapBytes(bytes: UInt): UInt = bytes shr 8 or (bytes and 0xFFu shl 8)
+}
+
+class LookupBitField<N, O, T : Any?> private constructor(
+    private val bitField: IBitField<N, O>,
+    pairs: Collection<Pair<UInt, T>>,
+) : IBitField<N, T> {
+    companion object {
+        inline fun <N, O, reified T> IBitField<N, O>.lookup(): LookupBitField<N, O, T>
+                where T : FieldMapping, T : Enum<T> =
+            lookup(enumValues<T>().toList())
+
+        fun <N, O, T : FieldMapping> IBitField<N, O>.lookup(mappings: Collection<T>): LookupBitField<N, O, T> =
             LookupBitField(this, mappings.map { it.value to it })
 
-        fun <T : Any?> IByteBitField.withLookup(vararg pairs: Pair<UInt, T>): LookupBitField<T> =
+        fun <N, O, T : Any?> IBitField<N, O>.lookup(vararg pairs: Pair<UInt, T>): LookupBitField<N, O, T> =
             LookupBitField(this, pairs.toList())
+
+        fun <N, O> IBitField<N, O>.asBoolean(): LookupBitField<N, O, Boolean> {
+            check(mask.countOneBits() == 1)
+            return lookup(
+                1u to true,
+                0u to false
+            )
+        }
     }
 
     init {
@@ -128,24 +139,17 @@ class LookupBitField<T : Any?> private constructor(
     private val map: Map<UInt, T> = pairs.toMap()
     private val inverseMap = pairs.associateBy({ it.second }, { it.first })
 
-    operator fun getValue(register: ByteRegister, property: KProperty<*>): T =
-        map.getValue(bitField.getValue(register, property).toUInt())
+    override val mask by bitField::mask
+    override val trailingZeros by bitField::trailingZeros
 
-    operator fun setValue(register: MutableByteRegister, property: KProperty<*>, value: T) {
-        bitField.setValue(register, property, inverseMap.getValue(value).toUByte())
+    override val toUInt: T.() -> UInt = { inverseMap.getValue(this) }
+    override val fromUInt: UInt.() -> T = { map.getValue(this) }
+
+    override operator fun getValue(register: IRegister<N>, property: KProperty<*>): T {
+        return map.getValue(bitField.toUInt(bitField.getValue(register, property)))
     }
 
-    operator fun getValue(register: ShortRegister, property: KProperty<*>): T =
-        map.getValue(bitField.getValue(register, property).toUInt())
-
-    operator fun setValue(register: MutableShortRegister, property: KProperty<*>, value: T) {
-        bitField.setValue(register, property, inverseMap.getValue(value).toUShort())
-    }
-
-    operator fun getValue(register: IntRegister, property: KProperty<*>): T =
-        map.getValue(bitField.getValue(register, property))
-
-    operator fun setValue(register: MutableIntRegister, property: KProperty<*>, value: T) {
-        bitField.setValue(register, property, inverseMap.getValue(value))
+    override operator fun setValue(register: IMutableRegister<N>, property: KProperty<*>, value: T) {
+        bitField.setValue(register, property, bitField.fromUInt(inverseMap.getValue(value)))
     }
 }
