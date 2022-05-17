@@ -17,7 +17,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -26,7 +25,6 @@ import kotlinx.serialization.encodeToString
 import uk.co.coroutines.enviropi.common.Sample
 import uk.co.coroutines.enviropi.common.jsonConfig
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 @Serializable
 data class State(
@@ -60,26 +58,29 @@ data class DoubleStateValue(
 
 private val sampleFlow = MutableSharedFlow<Sample>()
 
-private val runningState = sampleFlow
-    .runningFold(null) { state: State?, sample: Sample ->
+private val infoState = sampleFlow
+    .runningFold(null) { accumulator: Info?, sample: Sample ->
         val sampleTime = sample.time.toLocalDateTime(TimeZone.currentSystemDefault())
-        if (state == null) State(
-            temperature = DoubleStateValue(sample.temperature, sampleTime),
-            pressure = DoubleStateValue(sample.pressure, sampleTime),
-            humidity = DoubleStateValue(sample.humidity, sampleTime),
-        )
-        else State(
-            temperature = state.temperature.update(sample.temperature, sampleTime),
-            pressure = state.pressure.update(sample.pressure, sampleTime),
-            humidity = state.humidity.update(sample.humidity, sampleTime),
-        )
+        val state = when (val state = accumulator?.currentState) {
+            null -> State(
+                temperature = DoubleStateValue(sample.temperature, sampleTime),
+                pressure = DoubleStateValue(sample.pressure, sampleTime),
+                humidity = DoubleStateValue(sample.humidity, sampleTime),
+            )
+            else -> State(
+                temperature = state.temperature.update(sample.temperature, sampleTime),
+                pressure = state.pressure.update(sample.pressure, sampleTime),
+                humidity = state.humidity.update(sample.humidity, sampleTime),
+            )
+        }
+        Info(sample, state)
     }
     .stateIn(GlobalScope, started = Eagerly, initialValue = null)
 
 fun main() {
     combine(
         sampleFlow,
-        runningState.filterNotNull()
+        infoState.filterNotNull()
     ) { sample, state -> sample to state }
         .debounce(100.milliseconds)
         .onEach { (sample, state) -> println(jsonConfig.encodeToString(Info(sample, state))) }
@@ -87,9 +88,7 @@ fun main() {
 
     embeddedServer(CIO, port = 8989) {
 //            install(CORS)
-        install(ContentNegotiation) {
-            json(jsonConfig)
-        }
+        install(ContentNegotiation) { json(jsonConfig) }
         routing {
             post("/") {
                 val receive = call.receive<Sample>()
@@ -97,14 +96,12 @@ fun main() {
                 call.response.status(OK)
             }
             get {
-                withTimeoutOrNull(1.seconds) {
-                    call.respond(
-                        Info(
-                            sampleFlow.first(),
-                            runningState.filterNotNull().first()
-                        )
-                    )
-                } ?: call.respond(ServiceUnavailable, "Data not yet available")
+                infoState.value?.let { call.respondText(jsonConfig.encodeToString(it)) }
+                    ?: call.respond(ServiceUnavailable, "Data not yet available")
+            }
+            get("/api") {
+                infoState.value?.let { call.respond(it) }
+                    ?: call.respond(ServiceUnavailable, "Data not yet available")
             }
         }
     }.start(wait = true)

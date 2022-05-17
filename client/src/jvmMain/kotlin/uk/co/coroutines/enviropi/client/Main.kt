@@ -29,9 +29,7 @@ fun main(): Unit = runBlocking {
         val client = HttpClient {
             expectSuccess = true
             install(Logging)
-            install(ContentNegotiation) {
-                json(jsonConfig)
-            }
+            install(ContentNegotiation) { json(jsonConfig) }
         }
 
         BME280()
