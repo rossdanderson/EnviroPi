@@ -6,7 +6,7 @@ dependencyResolutionManagement {
             version("ktor", "2.0.1")
             version("kotlinx-serialization", "1.3.3")
             version("kotlinx-coroutines", "1.6.1")
-            version("kotlinx-datetime", "0.3.3")
+            version("kotlinx-datetime", "0.3.2")
 
             library("kotlinx-datetime", "org.jetbrains.kotlinx", "kotlinx-datetime")
                 .versionRef("kotlinx-datetime")

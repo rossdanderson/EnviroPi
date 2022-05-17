@@ -1,17 +1,34 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm")
+    kotlin("multiplatform")
     kotlin("plugin.serialization")
 }
 
-dependencies {
-    api(libs.bundles.kotlinx.datetime)
-    implementation(libs.bundles.kotlinx.serialization)
+kotlin {
+    jvm {
+        compilations.all {
+            kotlinOptions.jvmTarget = "11"
+        }
+        withJava()
+        testRuns["test"].executionTask.configure {
+            useJUnitPlatform()
+        }
+    }
+    js(BOTH) {
+        browser {
+            commonWebpackConfig {
+                cssSupport.enabled = true
+            }
+        }
+    }
 
-    testImplementation(kotlin("test"))
-}
-
-tasks.test {
-    useJUnitPlatform()
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                api(libs.bundles.kotlinx.datetime)
+                api(libs.bundles.kotlinx.serialization)
+            }
+        }
+    }
 }

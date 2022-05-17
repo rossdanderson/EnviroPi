@@ -1,19 +1,29 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm")
+    kotlin("multiplatform")
     kotlin("plugin.serialization")
 }
 
-dependencies {
-    implementation(project(":common"))
-    implementation(libs.bundles.ktor.server)
-    implementation(libs.bundles.kotlinx.serialization)
-    implementation(libs.bundles.kotlinx.coroutines)
+kotlin {
+    jvm {
+        compilations.all {
+            kotlinOptions.jvmTarget = "11"
+        }
+        withJava()
+        testRuns["test"].executionTask.configure {
+            useJUnitPlatform()
+        }
+    }
 
-    testImplementation(kotlin("test"))
-}
-
-tasks.test {
-    useJUnitPlatform()
+    sourceSets {
+        val jvmMain by getting {
+            dependencies {
+                implementation(project(":common"))
+                implementation(libs.bundles.ktor.server)
+                implementation(libs.bundles.kotlinx.serialization)
+                implementation(libs.bundles.kotlinx.coroutines)
+            }
+        }
+    }
 }
