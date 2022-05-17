@@ -1,4 +1,4 @@
-package uk.co.coroutines.enviropi.client
+package uk.co.coroutines.enviropi.client.i2c
 
 import com.diozero.api.I2CDevice
 

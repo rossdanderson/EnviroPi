@@ -1,8 +1,9 @@
 @file:OptIn(DelicateCoroutinesApi::class, FlowPreview::class)
 
-package uk.co.coroutines.enviropi.client.server
+package uk.co.coroutines.enviropi.server
 
 import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.ServiceUnavailable
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
@@ -21,8 +22,9 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import uk.co.coroutines.enviropi.common.Sample
+import uk.co.coroutines.enviropi.common.jsonConfig
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -48,7 +50,7 @@ data class DoubleStateValue(
 ) {
     constructor(value: Double, time: LocalDateTime) : this(value, time, value, time)
 
-    fun compareAndSwap(value: Double, time: LocalDateTime): DoubleStateValue =
+    fun update(value: Double, time: LocalDateTime): DoubleStateValue =
         when {
             value < this.lowValue -> copy(lowValue = value, lowTime = time)
             value > this.highValue -> copy(highValue = value, highTime = time)
@@ -67,9 +69,9 @@ private val runningState = sampleFlow
             humidity = DoubleStateValue(sample.humidity, sampleTime),
         )
         else State(
-            temperature = state.temperature.compareAndSwap(sample.temperature, sampleTime),
-            pressure = state.pressure.compareAndSwap(sample.pressure, sampleTime),
-            humidity = state.humidity.compareAndSwap(sample.humidity, sampleTime),
+            temperature = state.temperature.update(sample.temperature, sampleTime),
+            pressure = state.pressure.update(sample.pressure, sampleTime),
+            humidity = state.humidity.update(sample.humidity, sampleTime),
         )
     }
     .stateIn(GlobalScope, started = Eagerly, initialValue = null)
@@ -80,15 +82,13 @@ fun main() {
         runningState.filterNotNull()
     ) { sample, state -> sample to state }
         .debounce(100.milliseconds)
-        .onEach { (sample, state) -> println(Info(sample, state)) }
+        .onEach { (sample, state) -> println(jsonConfig.encodeToString(Info(sample, state))) }
         .launchIn(GlobalScope)
 
     embeddedServer(CIO, port = 8989) {
+//            install(CORS)
         install(ContentNegotiation) {
-            json(Json {
-                prettyPrint = true
-                isLenient = true
-            })
+            json(jsonConfig)
         }
         routing {
             post("/") {
@@ -104,7 +104,7 @@ fun main() {
                             runningState.filterNotNull().first()
                         )
                     )
-                } ?: call.respond("Not yet available")
+                } ?: call.respond(ServiceUnavailable, "Data not yet available")
             }
         }
     }.start(wait = true)

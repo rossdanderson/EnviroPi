@@ -2,14 +2,14 @@ package uk.co.coroutines.enviropi.client.ltr559
 
 import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
-import uk.co.coroutines.enviropi.client.BitFieldMask.Companion.mask
-import uk.co.coroutines.enviropi.client.ByteRegister
-import uk.co.coroutines.enviropi.client.ByteSwappingBitField.Companion.swapBytes
-import uk.co.coroutines.enviropi.client.FocussedBitField.Companion.asShort
-import uk.co.coroutines.enviropi.client.IntRegister
-import uk.co.coroutines.enviropi.client.LookupBitField.Companion.asBoolean
-import uk.co.coroutines.enviropi.client.LookupBitField.Companion.lookup
-import uk.co.coroutines.enviropi.client.MutableByteRegister
+import uk.co.coroutines.enviropi.client.i2c.BitFieldMask.Companion.mask
+import uk.co.coroutines.enviropi.client.i2c.ByteRegister
+import uk.co.coroutines.enviropi.client.i2c.ByteSwappingBitField.Companion.swapBytes
+import uk.co.coroutines.enviropi.client.i2c.FocussedBitField.Companion.asShort
+import uk.co.coroutines.enviropi.client.i2c.IntRegister
+import uk.co.coroutines.enviropi.client.i2c.LookupBitField.Companion.asBoolean
+import uk.co.coroutines.enviropi.client.i2c.LookupBitField.Companion.lookup
+import uk.co.coroutines.enviropi.client.i2c.MutableByteRegister
 import java.nio.ByteOrder
 
 class LTR559 {

@@ -1,6 +1,6 @@
 package uk.co.coroutines.enviropi.client.ltr559
 
-import uk.co.coroutines.enviropi.client.FieldMapping
+import uk.co.coroutines.enviropi.client.i2c.FieldMapping
 
 enum class LightSensorRepeatRate(override val value: UInt) : FieldMapping {
     `50ms`(0b000u),

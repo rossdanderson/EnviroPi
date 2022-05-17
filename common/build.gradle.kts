@@ -1,20 +1,26 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
 }
 
 kotlin {
+    targets.all {
+        compilations.all {
+            kotlinOptions {
+                freeCompilerArgs = freeCompilerArgs + "-opt-in=kotlin.RequiresOptIn"
+            }
+        }
+    }
+
     jvm {
         compilations.all {
             kotlinOptions.jvmTarget = "11"
         }
-        withJava()
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
     }
+
     js(BOTH) {
         browser {
             commonWebpackConfig {

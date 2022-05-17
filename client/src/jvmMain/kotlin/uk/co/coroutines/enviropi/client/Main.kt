@@ -17,6 +17,7 @@ import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import org.tinylog.Logger
 import uk.co.coroutines.enviropi.common.Sample
+import uk.co.coroutines.enviropi.common.jsonConfig
 import uk.co.coroutines.enviropi.common.serverHost
 import uk.co.coroutines.enviropi.common.serverPort
 import kotlin.time.Duration.Companion.seconds
@@ -29,10 +30,7 @@ fun main(): Unit = runBlocking {
             expectSuccess = true
             install(Logging)
             install(ContentNegotiation) {
-                json(Json {
-                    prettyPrint = true
-                    isLenient = true
-                })
+                json(jsonConfig)
             }
         }
 

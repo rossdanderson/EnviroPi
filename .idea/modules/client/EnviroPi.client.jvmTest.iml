@@ -12,7 +12,7 @@
           <externalSystemTestTask>jvmTest|:client|jvm</externalSystemTestTask>
         </externalSystemTestTasks>
         <compilerSettings>
-          <option name="additionalArguments" value="-Xallow-no-source-files" />
+          <option name="additionalArguments" value="-Xallow-no-source-files -opt-in kotlin.RequiresOptIn" />
         </compilerSettings>
         <compilerArguments>
           <flagArguments>
@@ -65,7 +65,6 @@
             <arrayArg name="friendPaths">
               <args>
                 <arg>$MODULE_DIR$/../../../client/build/classes/kotlin/jvm/main</arg>
-                <arg>$MODULE_DIR$/../../../client/build/classes/java/main</arg>
                 <arg>$MODULE_DIR$/../../../client/build/libs/client-jvm-1.0-SNAPSHOT.jar</arg>
               </args>
             </arrayArg>

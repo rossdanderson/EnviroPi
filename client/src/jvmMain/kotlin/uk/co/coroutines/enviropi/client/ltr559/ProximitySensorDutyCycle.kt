@@ -1,6 +1,6 @@
 package uk.co.coroutines.enviropi.client.ltr559
 
-import uk.co.coroutines.enviropi.client.FieldMapping
+import uk.co.coroutines.enviropi.client.i2c.FieldMapping
 
 enum class ProximitySensorDutyCycle(override val value: UInt) : FieldMapping {
     `0_25`(0b00u),

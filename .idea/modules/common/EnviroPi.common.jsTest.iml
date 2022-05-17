@@ -12,7 +12,9 @@
           <externalSystemTestTask>jsLegacyBrowserTest|:common|jsLegacy</externalSystemTestTask>
         </externalSystemTestTasks>
         <testOutputPath>$MODULE_DIR$/../../../build/js/packages/EnviroPi-common-js-legacy-test/kotlin/EnviroPi-common-js-legacy-test.js</testOutputPath>
-        <compilerSettings />
+        <compilerSettings>
+          <option name="additionalArguments" value="-opt-in kotlin.RequiresOptIn" />
+        </compilerSettings>
         <compilerArguments>
           <flagArguments>
             <flagArg name="metaInfo" arg="true" />
