@@ -9,11 +9,12 @@ abstract class ShortRegister(private val device: I2CDevice, private val register
     protected var backingValue: UShort? = null
     override val value: UShort
         get() = backingValue ?: run {
+            byteBuffer.clear()
             device.readI2CBlockData(register, byteBuffer.array())
             byteBuffer.short.toUShort().also { backingValue = it }
         }
 
-    fun resetCache() {
+    override fun resetCache() {
         backingValue = null
     }
 }
@@ -28,8 +29,9 @@ abstract class MutableShortRegister(private val device: I2CDevice, private val r
             backingValue = value
         }
 
-    fun flush() {
+    override fun flush() {
         backingValue?.let {
+            byteBuffer.clear()
             device.writeI2CBlockData(register, *byteBuffer.putShort(value.toShort()).array())
         }
     }

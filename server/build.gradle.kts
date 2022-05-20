@@ -1,6 +1,7 @@
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    id("com.google.cloud.tools.jib") version "3.2.1"
 }
 
 kotlin {
@@ -13,6 +14,7 @@ kotlin {
     }
 
     jvm {
+        withJava()
         compilations.all {
             kotlinOptions.jvmTarget = "11"
         }
@@ -34,6 +36,15 @@ kotlin {
             dependencies {
                 implementation(libs.bundles.ktor.server)
             }
+        }
+    }
+
+    jib {
+        to {
+            image = "rossdanderson/enviropi-server:latest"
+        }
+        container {
+            ports = listOf("8080", "9091")
         }
     }
 }

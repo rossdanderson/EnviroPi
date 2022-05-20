@@ -9,4 +9,5 @@ data class Sample(
     val temperature: Double, // Degrees C
     val pressure: Double, // hPa
     val humidity: Double, // Relative humidity %
+    val lux: Double,
 )

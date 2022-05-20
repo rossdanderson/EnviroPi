@@ -9,7 +9,7 @@ abstract class ByteRegister(private val device: I2CDevice, private val register:
     override val value: UByte
         get() = backingValue ?: device.readByteData(register).toUByte().also { backingValue = it }
 
-    fun resetCache() {
+    override fun resetCache() {
         backingValue = null
     }
 }
@@ -24,7 +24,7 @@ abstract class MutableByteRegister(private val device: I2CDevice, private val re
             backingValue = value
         }
 
-    fun flush() {
+    override fun flush() {
         backingValue?.let { device.writeByteData(register, value.toInt()) }
     }
 }

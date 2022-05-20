@@ -9,11 +9,12 @@ abstract class IntRegister(private val device: I2CDevice, private val register: 
     protected var backingValue: UInt? = null
     override val value: UInt
         get() = backingValue ?: run {
+            byteBuffer.clear()
             device.readI2CBlockData(register, byteBuffer.array())
             byteBuffer.int.toUInt().also { backingValue = it }
         }
 
-    fun resetCache() {
+    override fun resetCache() {
         backingValue = null
     }
 }
@@ -28,8 +29,9 @@ abstract class MutableIntRegister(private val device: I2CDevice, private val reg
             backingValue = value
         }
 
-    fun flush() {
+    override fun flush() {
         backingValue?.let {
+            byteBuffer.clear()
             device.writeI2CBlockData(register, *byteBuffer.putInt(value.toInt()).array())
         }
     }

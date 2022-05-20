@@ -9,9 +9,10 @@ interface FieldMapping {
 interface IBitField<N, O> {
 
     val mask: UInt
+    val trailingZeros: Int
+
     val toUInt: O.() -> UInt
     val fromUInt: UInt.() -> O
-    val trailingZeros: Int
 
     operator fun getValue(register: IRegister<N>, property: KProperty<*>): O
 
@@ -24,17 +25,13 @@ class BitFieldMask<N> private constructor(
     override val fromUInt: UInt.() -> N,
 ) : IBitField<N, N> {
 
-    init {
-        // TODO check bits are contiguous
-    }
-
     companion object {
-        fun ByteRegister.mask(mask: UByte): IBitField<UByte, UByte> = BitFieldMask(mask, UByte::toUInt, UInt::toUByte)
+        fun IRegister<UByte>.mask(mask: UByte): IBitField<UByte, UByte> = BitFieldMask(mask, UByte::toUInt, UInt::toUByte)
 
-        fun ShortRegister.mask(mask: UShort): IBitField<UShort, UShort> =
+        fun IRegister<UShort>.mask(mask: UShort): IBitField<UShort, UShort> =
             BitFieldMask(mask, UShort::toUInt, UInt::toUShort)
 
-        fun IntRegister.mask(mask: UInt): IBitField<UInt, UInt> = BitFieldMask(mask, UInt::toUInt, UInt::toUInt)
+        fun IRegister<UInt>.mask(mask: UInt): IBitField<UInt, UInt> = BitFieldMask(mask, UInt::toUInt, UInt::toUInt)
     }
 
     override val mask = mask.toUInt()

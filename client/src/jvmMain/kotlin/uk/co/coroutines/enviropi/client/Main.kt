@@ -16,10 +16,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import org.tinylog.Logger
+import uk.co.coroutines.enviropi.client.ltr559.LTR559
 import uk.co.coroutines.enviropi.common.Sample
 import uk.co.coroutines.enviropi.common.jsonConfig
 import uk.co.coroutines.enviropi.common.serverHost
 import uk.co.coroutines.enviropi.common.serverPort
+import java.net.Proxy
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
@@ -32,15 +34,18 @@ fun main(): Unit = runBlocking {
             install(ContentNegotiation) { json(jsonConfig) }
         }
 
-        BME280()
-            .use { bme280 ->
+        LTR559().use { ltr559 ->
+            BME280().use { bme280 ->
                 while (true) {
                     val start = Clock.System.now()
+
+                    val lux = ltr559.getLux()
                     bme280.values
                         .map(Float::toDouble)
                         .let { (temperature, pressure, humidity) ->
                             Logger.info(
-                                "Temperature: {0.##} C. Pressure: {0.##} hPa. Relative Humidity: {0.##}% RH",
+                                "Lux: {0.##}. Temperature: {0.##} C. Pressure: {0.##} hPa. Relative Humidity: {0.##}% RH",
+                                lux,
                                 temperature,
                                 pressure,
                                 humidity
@@ -48,18 +53,15 @@ fun main(): Unit = runBlocking {
 
                             runCatching {
                                 client.post {
-                                    url {
-                                        host = serverHost
-                                        port = serverPort
-                                        path("/")
-                                    }
+                                    url("$serverHost:$serverPort")
                                     contentType(Json)
                                     setBody(
                                         Sample(
                                             time = Clock.System.now(),
                                             temperature = temperature,
                                             pressure = pressure,
-                                            humidity = humidity
+                                            humidity = humidity,
+                                            lux = lux,
                                         )
                                     )
                                 }
@@ -70,6 +72,8 @@ fun main(): Unit = runBlocking {
                     delay(1.seconds - (end - start))
                 }
             }
+
+        }
     } catch (t: Throwable) {
         Logger.warn(t)
     } finally {

@@ -2,36 +2,42 @@ package uk.co.coroutines.enviropi.client.ltr559
 
 import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
+import org.tinylog.Logger
+import uk.co.coroutines.enviropi.client.i2c.*
 import uk.co.coroutines.enviropi.client.i2c.BitFieldMask.Companion.mask
-import uk.co.coroutines.enviropi.client.i2c.ByteRegister
 import uk.co.coroutines.enviropi.client.i2c.ByteSwappingBitField.Companion.swapBytes
 import uk.co.coroutines.enviropi.client.i2c.FocussedBitField.Companion.asShort
-import uk.co.coroutines.enviropi.client.i2c.IntRegister
 import uk.co.coroutines.enviropi.client.i2c.LookupBitField.Companion.asBoolean
 import uk.co.coroutines.enviropi.client.i2c.LookupBitField.Companion.lookup
-import uk.co.coroutines.enviropi.client.i2c.MutableByteRegister
+import uk.co.coroutines.enviropi.client.ltr559.LTR559.Bit12Adapter.Companion.bit12Adapter
 import java.nio.ByteOrder
+import kotlin.reflect.KProperty
+import kotlin.time.Duration.Companion.seconds
 
-class LTR559 {
+class LTR559 private constructor(): AutoCloseable {
     companion object {
         const val I2C_ADDR = 0x23
         val PART_ID = 0x09.toUByte()
         val REVISION_ID = 0x02.toUByte()
+
+        suspend operator fun invoke() = LTR559().apply { initialise() }
     }
 
-    val _als0 = 0
-    val _als1 = 0
-    var _ps0 = 0
-    var _lux = 0
-    var _ratio = 100
+    private var lightSensor0 = 0.0
+    private var lightSensor1 = 0.0
+    private var lux = 0.0
+    private var ratio = 100.0
+
+    private var proximitySensor0 = 0.0
 
     // Non default
-    var _gain = LightSensorGain.`4`  // 4x gain = 0.25 to 16k lux
-    var _integration_time = LightSensorIntegrationTime.`50ms`
+    private var gain = LightSensorGain.`4`  // 4x gain = 0.25 to 16k lux
+    private var integrationTime = LightSensorIntegrationTime.`50ms`
 
-    var _ch0_c = arrayOf(17743, 42785, 5926, 0)
-    var _ch1_c = arrayOf(-11059, 19548, -1185, 0)
-
+    private val _ch0_c = arrayOf(17743, 42785, 5926, 0)
+    private val _ch1_c = arrayOf(-11059, 19548, -1185, 0)
 
     private val device =
         I2CDevice.builder(I2C_ADDR)
@@ -39,16 +45,16 @@ class LTR559 {
             .setByteOrder(ByteOrder.LITTLE_ENDIAN)
             .build()
 
-    val lightSensorControl = object : MutableByteRegister(device, 0x80) {
+    private val lightSensorControl = object : MutableByteRegister(device, 0x80) {
         var gain: LightSensorGain by mask(0b00011100u).lookup()
-        var swReset: Boolean by mask(0b00000010u).asBoolean()
+        var softwareReset: Boolean by mask(0b00000010u).asBoolean()
         var mode: Boolean by mask(0b00000001u).asBoolean()
     }
 
     private val proximitySensorControl = object : MutableByteRegister(device, 0x81) {
         var saturationIndicatorEnable: Boolean by mask(0b00100000u).asBoolean()
 
-        val active: Boolean by mask(0b00000011u)
+        var active: Boolean by mask(0b00000011u)
             .lookup(
                 0b00u to false,
                 0b11u to true,
@@ -88,7 +94,7 @@ class LTR559 {
 
     private val lightSensorData = object : IntRegister(device, 0x88) {
         val ch1: UShort by mask(0xFFFF0000u).asShort().swapBytes()
-        val ch2: UShort by mask(0x0000FFFFu).asShort().swapBytes()
+        val ch0: UShort by mask(0x0000FFFFu).asShort().swapBytes()
     }
 
     private val status = object : ByteRegister(device, 0x8C) {
@@ -100,238 +106,52 @@ class LTR559 {
         val proximitySensorData: Boolean by mask(0b00000001u).asBoolean()
     }
 
-    init {
+    private val proximitySensorData = object : ShortRegister(device, 0x8D) {
+        val ch0 by mask(0xFF0Fu).bit12Adapter()
+        val saturation by mask(0x0080u)
+    }
+
+    // allows the interrupt pin and function behaviour to be configured.
+    private val interrupt = object : MutableByteRegister(device, 0x8F) {
+        var polarity by mask(0b00000100u).asBoolean()
+        var mode: InterruptMode by mask(0b00000011u).lookup()
+    }
+
+    private val proximitySensorThreshold = object : MutableIntRegister(device, 0x90) {
+        var upper by mask(0xFF0F0000u).asShort().bit12Adapter()
+        var lower by mask(0x0000FF0Fu).asShort().bit12Adapter()
+    }
+
+    private val proximitySensorOffset = object : MutableShortRegister(device, 0x94) {
+        var offset by mask(0x03FFu) // Last two bits of 0x94, full 8 bits of 0x95
+    }
+
+    private val lightSensorThreshold = object : MutableIntRegister(device, 0x97) {
+        var upper by mask(0xFFFF0000u).asShort().swapBytes()
+        var lower by mask(0x0000FFFFu).asShort().swapBytes()
+    }
+
+    private val interruptPersist = object : MutableByteRegister(device, 0x9E) {
+        var proximitySensor = mask(0xF0u)
+        var lightSensor = mask(0x0Fu)
+    }
+
+    suspend fun initialise() {
         check(deviceInfo.partId == PART_ID)
         check(deviceInfo.revisionId == REVISION_ID)
         check(manufacturerInfo.manufacturerId == 0x05.toUByte())
 
-        check(!proximitySensorControl.active)
-    }
-
-//class Bit12Adapter(Adapter):
-//    def _encode(self, value):
-//        """
-//        Convert the 12-bit input into the correct format for the registers,
-//        the low byte followed by 4 empty bits and the high nibble:
-//            0bHHHHLLLLLLLL -> 0bLLLLLLLLXXXXHHHH
-//        """
-//        return ((value & 0xFF) << 8) | ((value & 0xF00) >> 8)
-//
-//    def _decode(self, value):
-//        """
-//        Convert the 16-bit output into the correct format for reading:
-//            0bLLLLLLLLXXXXHHHH -> 0bHHHHLLLLLLLL
-//        """
-//        return ((value & 0xFF00) >> 8) | ((value & 0x000F) << 8)
-//
-//
-//class LTR559:
-//    def __init__(self, i2c_dev=None, enable_interrupts=False, interrupt_pin_polarity=1, timeout=5.0):
-//        """Initialise the LTR559.
-//        This sets up the LTR559 and checks that the Part Number ID matches 0x09 and
-//        that the Revision Number ID matches 0x02. If you come across an unsupported
-//        revision you should raise an Issue at https://github.com/pimoroni/ltr559-python
-//        Several known-good default values are picked during setup, and the interrupt
-//        thresholds are reset to the full range so that interrupts will not fire unless
-//        configured manually using `set_light_threshold` and `set_proximity_threshold`.
-//        Interrupts are always enabled, since this must be done before the sensor is active.
-//        """
-//        self._als0 = 0
-//        self._als1 = 0
-//        self._ps0 = 0
-//        self._lux = 0
-//        self._ratio = 100
-//
-//        # Non default
-//        self._gain = 4  # 4x gain = 0.25 to 16k lux
-//        self._integration_time = 50
-//
-//        self._ch0_c = (17743, 42785, 5926, 0)
-//        self._ch1_c = (-11059, 19548, -1185, 0)
-//
-//        self._ltr559 = Device(I2C_ADDR, i2c_dev=i2c_dev, bit_width=8, registers=(
-//            Register('ALS_CONTROL', 0x80, fields=(
-//                BitField('gain', 0b00011100, adapter=LookupAdapter({
-//                    1: 0b000,
-//                    2: 0b001,
-//                    4: 0b010,
-//                    8: 0b011,
-//                    48: 0b110,
-//                    96: 0b111})),
-//                BitField('sw_reset', 0b00000010),
-//                BitField('mode', 0b00000001)
-//            )),
-    // DONE ^
-//
-//            Register('PS_CONTROL', 0x81, fields=(
-//                BitField('saturation_indicator_enable', 0b00100000),
-//                BitField('active', 0b00000011, adapter=LookupAdapter({
-//                    False: 0b00,
-//                    True: 0b11}))
-//            )),
-    // DONE ^
-//
-//            Register('PS_LED', 0x82, fields=(
-//                BitField('pulse_freq_khz', 0b11100000, adapter=LookupAdapter({
-//                    30: 0b000,
-//                    40: 0b001,
-//                    50: 0b010,
-//                    60: 0b011,
-//                    70: 0b100,
-//                    80: 0b101,
-//                    90: 0b110,
-//                    100: 0b111})),
-//                BitField('duty_cycle', 0b00011000, adapter=LookupAdapter({
-//                    0.25: 0b00,
-//                    0.5: 0b01,
-//                    0.75: 0b10,
-//                    1.0: 0b11})),
-//                BitField('current_ma', 0b00000111, adapter=LookupAdapter({
-//                    5: 0b000,
-//                    10: 0b001,
-//                    20: 0b010,
-//                    50: 0b011,
-//                    100: 0b100}))
-//            )),
-    // DONE ^
-//
-//            Register('PS_N_PULSES', 0x83, fields=(
-//                BitField('count', 0b00001111),
-//            )),
-    // DONE ^
-//
-//            Register('PS_MEAS_RATE', 0x84, fields=(
-//                BitField('rate_ms', 0b00001111, adapter=LookupAdapter({
-//                    10: 0b1000,
-//                    50: 0b0000,
-//                    70: 0b0001,
-//                    100: 0b0010,
-//                    200: 0b0011,
-//                    500: 0b0100,
-//                    1000: 0b0101,
-//                    2000: 0b0110})),
-//            )),
-    // DONE ^
-//
-//            Register('ALS_MEAS_RATE', 0x85, fields=(
-//                BitField('integration_time_ms', 0b00111000, adapter=LookupAdapter({
-//                    100: 0b000,
-//                    50: 0b001,
-//                    200: 0b010,
-//                    400: 0b011,
-//                    150: 0b100,
-//                    250: 0b101,
-//                    300: 0b110,
-//                    350: 0b111})),
-//                BitField('repeat_rate_ms', 0b00000111, adapter=LookupAdapter({
-//                    50: 0b000,
-//                    100: 0b001,
-//                    200: 0b010,
-//                    500: 0b011,
-//                    1000: 0b100,
-//                    2000: 0b101}))
-//            )),
-    // DONE ^
-//
-//            Register('PART_ID', 0x86, fields=(
-//                BitField('part_number', 0b11110000),  # Should be 0x09H
-//                BitField('revision', 0b00001111)      # Should be 0x02H
-//            ), read_only=True, volatile=False),
-    // DONE ^
-//
-//            Register('MANUFACTURER_ID', 0x87, fields=(
-//                BitField('manufacturer_id', 0b11111111),  # Should be 0x05H
-//            ), read_only=True),
-    // DONE ^
-//
-//            # This will address 0x88, 0x89, 0x8A and 0x8B as a continuous 32bit register
-//            Register('ALS_DATA', 0x88, fields=(
-//                BitField('ch1', 0xFFFF0000, bit_width=16, adapter=U16ByteSwapAdapter()),
-//                BitField('ch0', 0x0000FFFF, bit_width=16, adapter=U16ByteSwapAdapter())
-//            ), read_only=True, bit_width=32),
-    // DONE ^
-//
-//            Register('ALS_PS_STATUS', 0x8C, fields=(
-//                BitField('als_data_valid', 0b10000000),
-//                BitField('als_gain', 0b01110000, adapter=LookupAdapter({
-//                    1: 0b000,
-//                    2: 0b001,
-//                    4: 0b010,
-//                    8: 0b011,
-//                    48: 0b110,
-//                    96: 0b111})),
-//                BitField('als_interrupt', 0b00001000),  # True = Interrupt is active
-//                BitField('als_data', 0b00000100),       # True = New data available
-//                BitField('ps_interrupt', 0b00000010),   # True = Interrupt is active
-//                BitField('ps_data', 0b00000001)         # True = New data available
-//            ), read_only=True),
-//    ^ DONE
-//
-//  TODO
-//            # The PS data is actually an 11bit value but since B3 is reserved it'll (probably) read as 0
-//            # We could mask the result if necessary
-//            Register('PS_DATA', 0x8D, fields=(
-//                BitField('ch0', 0xFF0F, adapter=Bit12Adapter()),
-//                BitField('saturation', 0x0080)
-//            ), bit_width=16, read_only=True),
-//  TODO
-//            # INTERRUPT allows the interrupt pin and function behaviour to be configured.
-//            Register('INTERRUPT', 0x8F, fields=(
-//                BitField('polarity', 0b00000100),
-//                BitField('mode', 0b00000011, adapter=LookupAdapter({
-//                    'off': 0b00,
-//                    'ps': 0b01,
-//                    'als': 0b10,
-//                    'als+ps': 0b11}))
-//            )),
-//  TODO
-//            Register('PS_THRESHOLD', 0x90, fields=(
-//                BitField('upper', 0xFF0F0000, adapter=Bit12Adapter()),
-//                BitField('lower', 0x0000FF0F, adapter=Bit12Adapter())
-//            ), bit_width=32),
-//  TODO
-//            # PS_OFFSET defines the measurement offset value to correct for proximity
-//            # offsets caused by device variations, crosstalk and other environmental factors.
-//            Register('PS_OFFSET', 0x94, fields=(
-//                BitField('offset', 0x03FF),  # Last two bits of 0x94, full 8 bits of 0x95
-//            ), bit_width=16),
-//  TODO
-//            # Defines the upper and lower limits of the ALS reading.
-//            # An interrupt is triggered if values fall outside of this range.
-//            # See also INTERRUPT_PERSIST.
-//            Register('ALS_THRESHOLD', 0x97, fields=(
-//                BitField('upper', 0xFFFF0000, adapter=U16ByteSwapAdapter(), bit_width=16),
-//                BitField('lower', 0x0000FFFF, adapter=U16ByteSwapAdapter(), bit_width=16)
-//            ), bit_width=32),
-//  TODO
-//            # This register controls how many values must fall outside of the range defined
-//            # by upper and lower threshold limits before the interrupt is asserted.
-//            # In the case of both PS and ALS, a 0 value indicates that every value outside
-//            # the threshold range should be counted.
-//            # Values therein map to n+1 , ie: 0b0001 requires two consecutive values.
-//            Register('INTERRUPT_PERSIST', 0x9E, fields=(
-//                BitField('PS', 0xF0),
-//                BitField('ALS', 0x0F)
-//            ))
-//
-//        ))
-//
-//        """Set up the LTR559 sensor"""
-//        self.part_id = self._ltr559.get('PART_ID')
-//        if self.part_id.part_number != PART_ID or self.part_id.revision != REVISION_ID:
-//            raise RuntimeError("LTR559 not found")
-//
-//        self._ltr559.set('ALS_CONTROL', sw_reset=1)
-//
-//        t_start = time.time()
-//        while time.time() - t_start < timeout:
-//            status = self._ltr559.get('ALS_CONTROL').sw_reset
-//            if status == 0:
-//                break
-//            time.sleep(0.05)
-//
-//        if self._ltr559.get('ALS_CONTROL').sw_reset:
-//            raise RuntimeError("Timeout waiting for software reset.")
+        with(lightSensorControl) {
+            softwareReset = true
+            flush()
+            withTimeout(5.seconds) {
+                do {
+                    delay(5)
+                    resetCache()
+                } while (softwareReset)
+            }
+        }
+        Logger.info { "LTR559 initialised" }
 //
 //        # Interrupt register must be set before device is switched to active mode
 //        # see datasheet page 12/40, note #2.
@@ -339,41 +159,111 @@ class LTR559 {
 //            self._ltr559.set('INTERRUPT',
 //                             mode='als+ps',
 //                             polarity=interrupt_pin_polarity)
-//
-//        # FIXME use datasheet defaults or document
-//        # No need to run the proximity LED at 100mA, so we pick 50 instead.
-//        # Tests suggest this works pretty well.
-//        self._ltr559.set('PS_LED',
-//                         current_ma=50,
-//                         duty_cycle=1.0,
-//                         pulse_freq_khz=30)
-//
+
+        proximitySensorLED.update {
+            current = ProximitySensorCurrent.`50mA`
+            dutyCycle = ProximitySensorDutyCycle.`1_00`
+            pulseFrequency = ProximitySensorPulseFrequency.`30KHz`
+        }
+
 //        # 1 pulse is the default value
-//        self._ltr559.set('PS_N_PULSES', count=1)
-//
-//        self._ltr559.set('ALS_CONTROL',
-//                         mode=1,
-//                         gain=self._gain)
-//
-//        self._ltr559.set('PS_CONTROL',
-//                         active=True,
-//                         saturation_indicator_enable=1)
-//
-//        self._ltr559.set('PS_MEAS_RATE', rate_ms=100)
-//
-//        self._ltr559.set('ALS_MEAS_RATE',
-//                         integration_time_ms=self._integration_time,
-//                         repeat_rate_ms=50)
-//
-//        self._ltr559.set('ALS_THRESHOLD',
-//                         lower=0x0000,
-//                         upper=0xFFFF)
-//
-//        self._ltr559.set('PS_THRESHOLD',
-//                         lower=0x0000,
-//                         upper=0xFFFF)
-//
-//        self._ltr559.set('PS_OFFSET', offset=0)
+        proximitySensorPulsesCount.update {
+            count = 1u
+        }
+
+        lightSensorControl.update {
+            mode = true
+            gain = this@LTR559.gain
+        }
+
+        proximitySensorControl.update {
+            active = true
+            saturationIndicatorEnable = true
+        }
+
+        proximitySensorMeasureRate.update {
+            rate = ProximitySensorMeasureRate.`100ms`
+        }
+
+        lightSensorMeasureRate.update {
+            integrationTime = this@LTR559.integrationTime
+            repeatRate = LightSensorRepeatRate.`50ms`
+        }
+
+        lightSensorThreshold.update {
+            lower = 0x0000u
+            upper = 0xFFFFu
+        }
+
+        proximitySensorThreshold.update {
+            lower = 0x0000u
+            upper = 0xFFFFu
+        }
+
+        proximitySensorOffset.update {
+            offset = 0u
+        }
+    }
+
+    private fun updateSensor() {
+
+//        Update the sensor lux and proximity values.
+//        Will perform a read of the status register and determine if either an interrupt
+//        has triggered or the new data flag for the light or proximity sensor is flipped.
+//        If new data is present it will be calculated and stored for later retrieval.
+//        Proximity data is stored in `self._ps0` and can be retrieved with `get_proximity`.
+//        Light sensor data is stored in `self._lux` and can be retrieved with `get_lux`.
+//        Raw light sensor data is also stored in `self._als0` and self._als1` which store
+//        the ch0 and ch1 values respectively. These can be retrieved with `get_raw_als`.
+
+        var proximitySensorInt = false
+        var lightSensorInt = false
+        status.read {
+            proximitySensorInt = status.proximitySensorInterrupt || status.proximitySensorData
+            lightSensorInt = status.lightSensorInterrupt || status.lightSensorData
+        }
+
+        if (proximitySensorInt) proximitySensor0 = proximitySensorData.read { ch0 }.toDouble()
+
+        if (lightSensorInt) {
+            lightSensorData.read {
+                lightSensor0 = lightSensorData.ch0.toDouble()
+                lightSensor1 = lightSensorData.ch1.toDouble()
+            }
+
+            println("LS0: $lightSensor0")
+            println("LS1: $lightSensor1")
+
+            ratio = if (lightSensor0 + lightSensor1 > 0) lightSensor1 * 100.0 / (lightSensor1 + lightSensor0) else 101.0
+            println("ratio: $ratio")
+
+            val index = when {
+                ratio < 45 -> 0
+                ratio < 64 -> 1
+                ratio < 85 -> 2
+                else -> 3
+            }
+            println("ch_idx: $index")
+
+            lux = try {
+                var lux = (lightSensor0 * _ch0_c[index]) - (lightSensor1 * _ch1_c[index])
+                lux /= (integrationTime.intVal.toDouble() / 100.0)
+                lux /= gain.intVal.toDouble()
+                lux /= 10000.0
+                lux
+            } catch (t: Throwable) { 0.0 }
+        }
+    }
+
+    fun getLux(passive: Boolean = false): Double {
+        if (!passive) updateSensor()
+        return lux
+    }
+
+    fun getProximity(passive: Boolean = false): Double {
+        if (!passive) updateSensor()
+        return proximitySensor0
+    }
 //
 //    def get_part_id(self):
 //        """Get part number.
@@ -507,46 +397,7 @@ class LTR559 {
 //                         mode=active,
 //                         gain=gain)
 //
-//    def update_sensor(self):
-//        """Update the sensor lux and proximity values.
-//        Will perform a read of the status register and determine if either an interrupt
-//        has triggered or the new data flag for the light or proximity sensor is flipped.
-//        If new data is present it will be calculated and stored for later retrieval.
-//        Proximity data is stored in `self._ps0` and can be retrieved with `get_proximity`.
-//        Light sensor data is stored in `self._lux` and can be retrieved with `get_lux`.
-//        Raw light sensor data is also stored in `self._als0` and self._als1` which store
-//        the ch0 and ch1 values respectively. These can be retrieved with `get_raw_als`.
-//        """
-//        status = self._ltr559.get('ALS_PS_STATUS')
-//        ps_int = status.ps_interrupt or status.ps_data
-//        als_int = status.als_interrupt or status.als_data
-//
-//        if ps_int:
-//            self._ps0 = self._ltr559.get('PS_DATA').ch0
-//
-//        if als_int:
-//            als = self._ltr559.get('ALS_DATA')
-//            self._als0 = als.ch0
-//            self._als1 = als.ch1
-//
-//            self._ratio = self._als1 * 100 / (self._als1 + self._als0) if self._als0 + self._als1 > 0 else 101
-//
-//            if self._ratio < 45:
-//                ch_idx = 0
-//            elif self._ratio < 64:
-//                ch_idx = 1
-//            elif self._ratio < 85:
-//                ch_idx = 2
-//            else:
-//                ch_idx = 3
-//
-//            try:
-//                self._lux = (self._als0 * self._ch0_c[ch_idx]) - (self._als1 * self._ch1_c[ch_idx])
-//                self._lux /= (self._integration_time / 100.0)
-//                self._lux /= self._gain
-//                self._lux /= 10000.0
-//            except ZeroDivisionError:
-//                self._lux = 0
+
 //
 //    def get_gain(self):
 //        """Return gain used in lux calculation."""
@@ -599,20 +450,37 @@ class LTR559 {
 //        if not passive:
 //            self.update_sensor()
 //        return self._ps0
-//
-//
-//if __name__ == "__main__":
-//    import sys
-//    delay = float(sys.argv[1]) if len(sys.argv) == 2 and sys.argv[1].isnumeric() else 0.05
-//    ltr559 = LTR559()
-//    try:
-//        while True:
-//            ltr559.update_sensor()
-//            lux = ltr559.get_lux(passive=True)
-//            prox = ltr559.get_proximity(passive=True)
-//
-//            print("Lux: {:07.2f}, Proximity: {:04d}".format(lux, prox))
-//            time.sleep(delay)
-//    except KeyboardInterrupt:
-//        pass
+
+    private class Bit12Adapter<N> private constructor(private val bitField: IBitField<N, UShort>) :
+        IBitField<N, UShort> by bitField {
+        companion object {
+            fun <N> IBitField<N, UShort>.bit12Adapter(): IBitField<N, UShort> = Bit12Adapter(this)
+        }
+
+        override fun getValue(register: IRegister<N>, property: KProperty<*>): UShort =
+            decode(bitField.getValue(register, property).toUInt()).toUShort()
+
+        override fun setValue(register: IMutableRegister<N>, property: KProperty<*>, value: UShort) {
+            bitField.setValue(register, property, encode(value.toUInt()).toUShort())
+        }
+
+        /**
+         * Convert the 12-bit input into the correct format for the registers,
+         * the low byte followed by 4 empty bits and the high nibble:
+         * 0bHHHHLLLLLLLL -> 0bLLLLLLLLXXXXHHHH
+         */
+        private fun encode(bytes: UInt): UInt =
+            bytes and 0xFFu shl 8 or (bytes and 0xF00u shr 8)
+
+        /**
+         * Convert the 16-bit output into the correct format for reading:
+         * 0bLLLLLLLLXXXXHHHH -> 0bHHHHLLLLLLLL
+         */
+        private fun decode(bytes: UInt): UInt =
+            bytes and 0xFF00u shr 8 or (bytes and 0x000Fu shl 8)
+    }
+
+    override fun close() {
+        device.close()
+    }
 }

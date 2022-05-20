@@ -21,8 +21,14 @@ dependencyResolutionManagement {
                 .versionRef("ktor")
             library("ktor-server-cio", "io.ktor", "ktor-server-cio")
                 .versionRef("ktor")
+            library("ktor-server-cors", "io.ktor", "ktor-server-cors")
+                .versionRef("ktor")
+            library("ktor-server-metrics-micrometer", "io.ktor", "ktor-server-metrics-micrometer")
+                .versionRef("ktor")
             library("ktor-server-content-negotiation", "io.ktor", "ktor-server-content-negotiation")
                 .versionRef("ktor")
+            library("micrometer-registry-prometheus", "io.micrometer", "micrometer-registry-prometheus")
+                .version("1.9.0")
 
             library("ktor-client-core", "io.ktor", "ktor-client-core")
                 .versionRef("ktor")
@@ -49,9 +55,12 @@ dependencyResolutionManagement {
             bundle(
                 "ktor-server", listOf(
                     "ktor-serialization-kotlinx-json",
+                    "ktor-server-metrics-micrometer",
                     "ktor-server-core",
                     "ktor-server-cio",
+                    "ktor-server-cors",
                     "ktor-server-content-negotiation",
+                    "micrometer-registry-prometheus",
                 )
             )
             bundle("kotlinx-datetime", listOf("kotlinx-datetime"))
