@@ -1,6 +1,11 @@
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    application
+}
+
+application {
+    mainClass.set("uk.co.coroutines.enviropi.client.MainKt")
 }
 
 kotlin {
