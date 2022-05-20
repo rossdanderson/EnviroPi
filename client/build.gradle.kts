@@ -34,6 +34,7 @@ kotlin {
                 implementation(libs.bundles.ktor.client)
                 implementation(libs.bundles.kotlinx.serialization)
                 implementation(libs.bundles.kotlinx.coroutines)
+                implementation(libs.bundles.tinylog)
                 implementation("com.diozero:diozero-core:1.3.1")
             }
         }

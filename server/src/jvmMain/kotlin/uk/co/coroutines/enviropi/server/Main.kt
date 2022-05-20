@@ -25,6 +25,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import org.tinylog.kotlin.Logger
 import uk.co.coroutines.enviropi.common.Sample
 import uk.co.coroutines.enviropi.common.jsonConfig
 import kotlin.time.Duration.Companion.minutes
@@ -87,7 +88,7 @@ private val infoState = sampleFlow
 fun main(): Unit = runBlocking {
     infoState.filterNotNull()
         .sample(10.seconds)
-        .onEach { info -> println(jsonConfig.encodeToString(info)) }
+        .onEach { info -> Logger.info { info.toString() } }
         .launchIn(GlobalScope)
 
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
