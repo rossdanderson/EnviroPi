@@ -231,11 +231,8 @@ class LTR559 private constructor(): AutoCloseable {
                 lightSensor1 = lightSensorData.ch1.toDouble()
             }
 
-            println("LS0: $lightSensor0")
-            println("LS1: $lightSensor1")
 
             ratio = if (lightSensor0 + lightSensor1 > 0) lightSensor1 * 100.0 / (lightSensor1 + lightSensor0) else 101.0
-            println("ratio: $ratio")
 
             val index = when {
                 ratio < 45 -> 0
@@ -243,7 +240,6 @@ class LTR559 private constructor(): AutoCloseable {
                 ratio < 85 -> 2
                 else -> 3
             }
-            println("ch_idx: $index")
 
             lux = try {
                 var lux = (lightSensor0 * _ch0_c[index]) - (lightSensor1 * _ch1_c[index])

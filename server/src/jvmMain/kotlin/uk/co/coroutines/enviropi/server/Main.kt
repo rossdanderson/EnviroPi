@@ -16,12 +16,10 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.micrometer.prometheus.PrometheusConfig
 import io.micrometer.prometheus.PrometheusMeterRegistry
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
-import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -29,6 +27,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import uk.co.coroutines.enviropi.common.Sample
 import uk.co.coroutines.enviropi.common.jsonConfig
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 @Serializable
@@ -92,6 +91,30 @@ fun main(): Unit = runBlocking {
         .launchIn(GlobalScope)
 
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+
+    launch {
+        infoState.filterNotNull().first()
+        appMicrometerRegistry.gauge("enviropi_temperature", infoState) { info ->
+            info.value?.lastSample
+                ?.takeIf { sample -> (Clock.System.now() - sample.time) < 10.minutes }!!
+                .temperature
+        }
+        appMicrometerRegistry.gauge("enviropi_humidity", infoState) { info ->
+            info.value?.lastSample
+                ?.takeIf { sample -> (Clock.System.now() - sample.time) < 10.minutes }!!
+                .humidity
+        }
+        appMicrometerRegistry.gauge("enviropi_pressure", infoState) { info ->
+            info.value?.lastSample
+                ?.takeIf { sample -> (Clock.System.now() - sample.time) < 10.minutes }!!
+                .pressure
+        }
+        appMicrometerRegistry.gauge("enviropi_light", infoState) { info ->
+            info.value?.lastSample
+                ?.takeIf { sample -> (Clock.System.now() - sample.time) < 10.minutes }!!
+                .lux
+        }
+    }
 
     embeddedServer(CIO, port = 8080) {
         install(MicrometerMetrics) { registry = appMicrometerRegistry }
