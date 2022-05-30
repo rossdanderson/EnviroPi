@@ -2,7 +2,7 @@ package uk.co.coroutines.enviropi.client.ltr559
 
 import uk.co.coroutines.enviropi.client.i2c.FieldMapping
 
-enum class ProximitySensorPulseFrequency(override val value: UInt) : FieldMapping {
+enum class ProximitySensorPulseFrequency(override val bitValue: UInt) : FieldMapping {
     `30KHz`(0b000u),
     `40KHz`(0b001u),
     `50KHz`(0b010u),

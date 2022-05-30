@@ -35,6 +35,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(libs.bundles.ktor.server)
+                implementation(libs.bundles.tinylog)
             }
         }
     }

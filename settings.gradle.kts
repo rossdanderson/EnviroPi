@@ -7,6 +7,14 @@ dependencyResolutionManagement {
             version("kotlinx-serialization", "1.3.3")
             version("kotlinx-coroutines", "1.6.1")
             version("kotlinx-datetime", "0.3.2")
+            version("tinylog", "2.4.1")
+
+            library("slf4j-tinylog", "org.tinylog", "slf4j-tinylog")
+                .versionRef("tinylog")
+            library("tinylog-api-kotlin", "org.tinylog", "tinylog-api-kotlin")
+                .versionRef("tinylog")
+            library("tinylog-impl", "org.tinylog", "tinylog-impl")
+                .versionRef("tinylog")
 
             library("kotlinx-datetime", "org.jetbrains.kotlinx", "kotlinx-datetime")
                 .versionRef("kotlinx-datetime")
@@ -42,6 +50,14 @@ dependencyResolutionManagement {
             library("kotlinx-coroutines-core", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
                 .versionRef("kotlinx-coroutines")
 
+            bundle(
+                "tinylog",
+                listOf(
+                    "slf4j-tinylog",
+                    "tinylog-api-kotlin",
+                    "tinylog-impl",
+                ),
+            )
             bundle(
                 "ktor-client",
                 listOf(

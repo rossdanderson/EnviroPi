@@ -36,43 +36,42 @@ fun main(): Unit = runBlocking {
 
         LTR559().use { ltr559 ->
             BME280().use { bme280 ->
+                while (!bme280.isDataAvailable || !ltr559.dataAvailable) { delay(100) }
+
                 while (true) {
                     val start = Clock.System.now()
 
                     val lux = ltr559.getLux()
-                    bme280.values
-                        .map(Float::toDouble)
-                        .let { (temperature, pressure, humidity) ->
-                            Logger.info(
-                                "Lux: {0.##}. Temperature: {0.##} C. Pressure: {0.##} hPa. Relative Humidity: {0.##}% RH",
-                                lux,
-                                temperature,
-                                pressure,
-                                humidity
-                            )
+                    val (temperature, pressure, humidity) = bme280.values.map(Float::toDouble)
 
-                            runCatching {
-                                client.post {
-                                    url("$serverHost:$serverPort")
-                                    contentType(Json)
-                                    setBody(
-                                        Sample(
-                                            time = Clock.System.now(),
-                                            temperature = temperature,
-                                            pressure = pressure,
-                                            humidity = humidity,
-                                            lux = lux,
-                                        )
-                                    )
-                                }
-                            }.onFailure { Logger.warn(it) { "Unable to publish data" } }
+                    Logger.info(
+                        "Lux: {0.##}. Temperature: {0.##} C. Pressure: {0.##} hPa. Relative Humidity: {0.##}% RH",
+                        lux,
+                        temperature,
+                        pressure,
+                        humidity
+                    )
+
+                    runCatching {
+                        client.post {
+                            url("$serverHost:$serverPort")
+                            contentType(Json)
+                            setBody(
+                                Sample(
+                                    time = Clock.System.now(),
+                                    temperature = temperature,
+                                    pressure = pressure,
+                                    humidity = humidity,
+                                    lux = lux,
+                                )
+                            )
                         }
+                    }.onFailure { Logger.warn(it) { "Unable to publish data" } }
 
                     val end = Clock.System.now()
                     delay(1.seconds - (end - start))
                 }
             }
-
         }
     } catch (t: Throwable) {
         Logger.warn(t)

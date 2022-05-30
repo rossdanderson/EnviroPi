@@ -3,7 +3,7 @@ package uk.co.coroutines.enviropi.client.i2c
 import kotlin.reflect.KProperty
 
 interface FieldMapping {
-    val value: UInt
+    val bitValue: UInt
 }
 
 interface IBitField<N, O> {
@@ -114,7 +114,7 @@ class LookupBitField<N, O, T : Any?> private constructor(
             lookup(enumValues<T>().toList())
 
         fun <N, O, T : FieldMapping> IBitField<N, O>.lookup(mappings: Collection<T>): LookupBitField<N, O, T> =
-            LookupBitField(this, mappings.map { it.value to it })
+            LookupBitField(this, mappings.map { it.bitValue to it })
 
         fun <N, O, T : Any?> IBitField<N, O>.lookup(vararg pairs: Pair<UInt, T>): LookupBitField<N, O, T> =
             LookupBitField(this, pairs.toList())
