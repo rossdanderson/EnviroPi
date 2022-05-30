@@ -14,19 +14,17 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
-import kotlinx.serialization.json.Json
-import org.tinylog.Logger
+import org.tinylog.kotlin.Logger
 import uk.co.coroutines.enviropi.client.ltr559.LTR559
 import uk.co.coroutines.enviropi.common.Sample
 import uk.co.coroutines.enviropi.common.jsonConfig
-import uk.co.coroutines.enviropi.common.serverHost
-import uk.co.coroutines.enviropi.common.serverPort
-import java.net.Proxy
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
-fun main(): Unit = runBlocking {
+fun main(args: Array<String>): Unit = runBlocking {
 
+    val server = args[0]
+    Logger.info { "Publishing to $server:443" }
     try {
         val client = HttpClient {
             expectSuccess = true
@@ -54,7 +52,7 @@ fun main(): Unit = runBlocking {
 
                     runCatching {
                         client.post {
-                            url("$serverHost:$serverPort")
+                            url("$server:443")
                             contentType(Json)
                             setBody(
                                 Sample(
