@@ -25,6 +25,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import ktor_health_check.Health
 import org.tinylog.kotlin.Logger
 import uk.co.coroutines.enviropi.common.Sample
 import uk.co.coroutines.enviropi.common.jsonConfig
@@ -118,6 +119,7 @@ fun main(): Unit = runBlocking {
     }
 
     embeddedServer(CIO, port = 8080) {
+        install(Health)
         install(MicrometerMetrics) { registry = appMicrometerRegistry }
         install(CORS)
         install(ContentNegotiation) { json(jsonConfig) }

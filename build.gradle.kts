@@ -1,8 +1,6 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
-    kotlin("multiplatform") version "1.6.21" apply false
-    kotlin("plugin.serialization") version "1.6.21" apply false
+    kotlin("multiplatform") version "1.7.0" apply false
+    kotlin("plugin.serialization") version "1.7.0" apply false
 }
 
 allprojects {
@@ -11,5 +9,6 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
     }
 }

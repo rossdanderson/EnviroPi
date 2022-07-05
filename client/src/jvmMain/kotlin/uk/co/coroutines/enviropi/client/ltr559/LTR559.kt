@@ -12,7 +12,6 @@ import uk.co.coroutines.enviropi.client.i2c.FocussedBitField.Companion.asShort
 import uk.co.coroutines.enviropi.client.i2c.LookupBitField.Companion.asBoolean
 import uk.co.coroutines.enviropi.client.i2c.LookupBitField.Companion.lookup
 import uk.co.coroutines.enviropi.client.ltr559.LTR559.Bit12Adapter.Companion.bit12Adapter
-import java.nio.ByteOrder
 import kotlin.reflect.KProperty
 import kotlin.time.Duration.Companion.seconds
 

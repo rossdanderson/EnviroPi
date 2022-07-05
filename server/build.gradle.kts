@@ -36,6 +36,7 @@ kotlin {
             dependencies {
                 implementation(libs.bundles.ktor.server)
                 implementation(libs.bundles.tinylog)
+                implementation(libs.ktor.healthCheck)
             }
         }
     }
