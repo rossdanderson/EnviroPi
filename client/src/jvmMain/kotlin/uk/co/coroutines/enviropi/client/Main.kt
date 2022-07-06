@@ -5,6 +5,7 @@ package uk.co.coroutines.enviropi.client
 import com.diozero.devices.BME280
 import com.diozero.util.Diozero
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
@@ -30,6 +31,9 @@ fun main(args: Array<String>): Unit = runBlocking {
             expectSuccess = true
             install(Logging)
             install(ContentNegotiation) { json(jsonConfig) }
+            install(HttpTimeout) {
+                requestTimeoutMillis = 10.seconds.inWholeMilliseconds
+            }
         }
 
         LTR559().use { ltr559 ->
