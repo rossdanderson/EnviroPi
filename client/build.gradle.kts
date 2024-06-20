@@ -11,17 +11,16 @@ application {
 kotlin {
     targets.all {
         compilations.all {
-            kotlinOptions {
-                freeCompilerArgs = freeCompilerArgs + "-opt-in=kotlin.RequiresOptIn"
+            compileTaskProvider.configure {
+                compilerOptions {
+                    freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
+                }
             }
         }
     }
 
     jvm {
         withJava()
-        compilations.all {
-            kotlinOptions.jvmTarget = "11"
-        }
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
@@ -35,7 +34,8 @@ kotlin {
                 implementation(libs.bundles.kotlinx.serialization)
                 implementation(libs.bundles.kotlinx.coroutines)
                 implementation(libs.bundles.tinylog)
-                implementation("com.diozero:diozero-core:1.3.1")
+                implementation("com.diozero:diozero-core:1.4.0")
+                implementation("org.jetbrains.kotlinx:kandy-api:0.6.0")
             }
         }
         val jvmTest by getting {

@@ -26,16 +26,18 @@ class BitFieldMask<N> private constructor(
 ) : IBitField<N, N> {
 
     companion object {
-        fun IRegister<UByte>.mask(mask: UByte): IBitField<UByte, UByte> = BitFieldMask(mask, UByte::toUInt, UInt::toUByte)
+        fun IRegister<UByte>.mask(mask: UByte): IBitField<UByte, UByte> =
+            BitFieldMask(mask, UByte::toUInt, UInt::toUByte)
 
         fun IRegister<UShort>.mask(mask: UShort): IBitField<UShort, UShort> =
             BitFieldMask(mask, UShort::toUInt, UInt::toUShort)
 
-        fun IRegister<UInt>.mask(mask: UInt): IBitField<UInt, UInt> = BitFieldMask(mask, UInt::toUInt, UInt::toUInt)
+        fun IRegister<UInt>.mask(mask: UInt): IBitField<UInt, UInt> =
+            BitFieldMask(mask, UInt::toUInt, UInt::toUInt)
     }
 
     override val mask = mask.toUInt()
-    private val invMask = mask.toUInt().inv()
+    private val invMask = this.mask.inv()
     override val trailingZeros: Int = mask.toUInt().countTrailingZeroBits()
 
     override operator fun getValue(register: IRegister<N>, property: KProperty<*>): N =
@@ -55,10 +57,6 @@ class FocussedBitField<N, O, T> private constructor(
     private val from: O.() -> T,
     private val to: T.() -> O,
 ) : IBitField<N, T> {
-    override val mask by bitField::mask
-    override val trailingZeros by bitField::trailingZeros
-
-    // TODO Check mask is the appropriate size
 
     companion object {
         @JvmName("focusByteUShortUByte")
@@ -72,6 +70,10 @@ class FocussedBitField<N, O, T> private constructor(
         fun <N> IBitField<N, UInt>.asShort(): IBitField<N, UShort> =
             FocussedBitField(this, UInt::toUShort, UShort::toUInt)
     }
+
+    // TODO Check mask is the appropriate size
+    override val mask by bitField::mask
+    override val trailingZeros by bitField::trailingZeros
 
     override val toUInt: T.() -> UInt = { bitField.toUInt(to()) }
     override val fromUInt: UInt.() -> T = { bitField.fromUInt(this).from() }

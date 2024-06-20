@@ -21,13 +21,13 @@ kotlin {
         }
     }
 
-    js(BOTH) {
-        browser {
-            commonWebpackConfig {
-                cssSupport.enabled = true
-            }
-        }
-    }
+//    js(BOTH) {
+//        browser {
+//            commonWebpackConfig {
+//                cssSupport.enabled = true
+//            }
+//        }
+//    }
 
     sourceSets {
         val commonMain by getting {

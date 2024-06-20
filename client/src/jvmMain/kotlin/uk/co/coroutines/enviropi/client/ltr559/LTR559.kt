@@ -4,7 +4,7 @@ import com.diozero.api.I2CConstants
 import com.diozero.api.I2CDevice
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
-import org.tinylog.Logger
+import org.tinylog.Logger.info
 import uk.co.coroutines.enviropi.client.i2c.*
 import uk.co.coroutines.enviropi.client.i2c.BitFieldMask.Companion.mask
 import uk.co.coroutines.enviropi.client.i2c.ByteSwappingBitField.Companion.swapBytes
@@ -141,7 +141,7 @@ class LTR559 private constructor() : AutoCloseable {
                 delay(5)
             } while (resetting)
         }
-        Logger.info { "LTR559 initialised" }
+        info { "LTR559 initialised" }
 
         proximitySensorLED.write {
             current = ProximitySensorCurrent.`50mA`
@@ -236,10 +236,10 @@ class LTR559 private constructor() : AutoCloseable {
         }
 
         override fun getValue(register: IRegister<N>, property: KProperty<*>): UShort =
-            decode(bitField.getValue(register, property).toUInt()).toUShort()
+            decode(bitField.getValue(register, property))
 
         override fun setValue(register: IMutableRegister<N>, property: KProperty<*>, value: UShort) {
-            bitField.setValue(register, property, encode(value.toUInt()).toUShort())
+            bitField.setValue(register, property, encode(value))
         }
 
         /**
@@ -247,15 +247,19 @@ class LTR559 private constructor() : AutoCloseable {
          * the low byte followed by 4 empty bits and the high nibble:
          * 0bHHHHLLLLLLLL -> 0bLLLLLLLLXXXXHHHH
          */
-        private fun encode(bytes: UInt): UInt =
-            bytes and 0xFFu shl 8 or (bytes and 0xF00u shr 8)
+        private fun encode(bytes: UShort): UShort {
+            val iBytes = bytes.toUInt()
+            return (iBytes and 0xFFu shl 8 or (iBytes and 0xF00u shr 8)).toUShort()
+        }
 
         /**
          * Convert the 16-bit output into the correct format for reading:
          * 0bLLLLLLLLXXXXHHHH -> 0bHHHHLLLLLLLL
          */
-        private fun decode(bytes: UInt): UInt =
-            bytes and 0xFF00u shr 8 or (bytes and 0x000Fu shl 8)
+        private fun decode(bytes: UShort): UShort {
+            val iBytes = bytes.toUInt()
+            return (iBytes and 0xFF00u shr 8 or (iBytes and 0x000Fu shl 8)).toUShort()
+        }
     }
 
     override fun close() {

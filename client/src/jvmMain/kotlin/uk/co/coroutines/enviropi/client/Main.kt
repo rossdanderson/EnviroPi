@@ -15,7 +15,8 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
-import org.tinylog.kotlin.Logger
+import org.tinylog.kotlin.Logger.info
+import org.tinylog.kotlin.Logger.warn
 import uk.co.coroutines.enviropi.client.ltr559.LTR559
 import uk.co.coroutines.enviropi.common.Sample
 import uk.co.coroutines.enviropi.common.jsonConfig
@@ -25,7 +26,7 @@ import kotlin.time.ExperimentalTime
 fun main(args: Array<String>): Unit = runBlocking {
 
     val server = args[0]
-    Logger.info { "Publishing to $server:443" }
+    info { "Publishing to $server:443" }
     try {
         val client = HttpClient {
             expectSuccess = true
@@ -46,7 +47,7 @@ fun main(args: Array<String>): Unit = runBlocking {
                     val lux = ltr559.getLux()
                     val (temperature, pressure, humidity) = bme280.values.map(Float::toDouble)
 
-                    Logger.info(
+                    info(
                         "Lux: {0.##}. Temperature: {0.##} C. Pressure: {0.##} hPa. Relative Humidity: {0.##}% RH",
                         lux,
                         temperature,
@@ -68,7 +69,7 @@ fun main(args: Array<String>): Unit = runBlocking {
                                 )
                             )
                         }
-                    }.onFailure { Logger.warn(it) { "Unable to publish data" } }
+                    }.onFailure { warn(it) { "Unable to publish data" } }
 
                     val end = Clock.System.now()
                     delay(1.seconds - (end - start))
@@ -76,7 +77,7 @@ fun main(args: Array<String>): Unit = runBlocking {
             }
         }
     } catch (t: Throwable) {
-        Logger.warn(t)
+        warn(t)
     } finally {
         // Required if there are non-daemon threads that will prevent the
         // built-in clean-up routines from running
