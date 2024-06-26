@@ -1,5 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+
 plugins {
-    kotlin("multiplatform")
+    kotlin("jvm")
     kotlin("plugin.serialization")
     application
 }
@@ -9,39 +11,22 @@ application {
 }
 
 kotlin {
-    targets.all {
-        compilations.all {
-            compileTaskProvider.configure {
-                compilerOptions {
-                    freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
-                }
-            }
-        }
+    compilerOptions {
+        jvmTarget.set(JVM_17)
     }
+}
 
-    jvm {
-        withJava()
-        testRuns["test"].executionTask.configure {
-            useJUnitPlatform()
-        }
-    }
+dependencies {
+    implementation(project(":common"))
+    implementation(libs.bundles.kotlinx.serialization)
+    implementation(libs.bundles.kotlinx.coroutines)
+    implementation(libs.bundles.tinylog)
+    implementation("com.diozero:diozero-core:1.4.0")
+//    implementation("org.jetbrains.kotlinx:kandy-lets-plot:0.6.0")
 
-    sourceSets {
-        val jvmMain by getting {
-            dependencies {
-                implementation(project(":common"))
-                implementation(libs.bundles.ktor.client)
-                implementation(libs.bundles.kotlinx.serialization)
-                implementation(libs.bundles.kotlinx.coroutines)
-                implementation(libs.bundles.tinylog)
-                implementation("com.diozero:diozero-core:1.4.0")
-                implementation("org.jetbrains.kotlinx:kandy-api:0.6.0")
-            }
-        }
-        val jvmTest by getting {
-            dependencies {
-                implementation("org.junit.jupiter:junit-jupiter:5.8.1")
-            }
-        }
-    }
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }

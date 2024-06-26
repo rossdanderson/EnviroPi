@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Client" type="JetRunConfigurationType">
     <option name="MAIN_CLASS_NAME" value="uk.co.coroutines.enviropi.client.MainKt" />
-    <module name="EnviroPi.client.jvmMain" />
-    <target name="pi@enviropi:22" />
+    <module name="EnviroPi.client.main" />
+    <target name="root@enviropi:22" />
     <shortenClasspath name="NONE" />
     <method v="2">
       <option name="Make" enabled="true" />

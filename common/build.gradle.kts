@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
@@ -6,28 +8,26 @@ plugins {
 kotlin {
     targets.all {
         compilations.all {
-            kotlinOptions {
-                freeCompilerArgs = freeCompilerArgs + "-opt-in=kotlin.RequiresOptIn"
+            compileTaskProvider.configure {
+                compilerOptions {
+                    freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
+                }
             }
         }
     }
 
     jvm {
         compilations.all {
-            kotlinOptions.jvmTarget = "11"
+            compileTaskProvider.configure {
+                compilerOptions {
+                    jvmTarget.set(JvmTarget.JVM_17)
+                }
+            }
         }
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
     }
-
-//    js(BOTH) {
-//        browser {
-//            commonWebpackConfig {
-//                cssSupport.enabled = true
-//            }
-//        }
-//    }
 
     sourceSets {
         val commonMain by getting {
