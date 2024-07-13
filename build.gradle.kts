@@ -6,10 +6,9 @@ plugins {
 
 allprojects {
     group = "uk.co.coroutines"
-    version = "1.0-SNAPSHOT"
+    version = "1.0"
 
     repositories {
         mavenCentral()
-        maven { url = uri("https://jitpack.io") }
     }
 }

@@ -7,13 +7,17 @@ plugins {
 }
 
 application {
-    mainClass.set("uk.co.coroutines.enviropi.client.MainKt")
+    mainClass.set("uk.co.coroutines.enviropi.client.DemoMainKt")
 }
 
 kotlin {
     compilerOptions {
         jvmTarget.set(JVM_17)
     }
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 dependencies {
@@ -25,8 +29,4 @@ dependencies {
 //    implementation("org.jetbrains.kotlinx:kandy-lets-plot:0.6.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
 }

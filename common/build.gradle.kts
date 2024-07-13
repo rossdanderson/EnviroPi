@@ -1,40 +1,29 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
 
 plugins {
-    kotlin("multiplatform")
+    kotlin("jvm")
     kotlin("plugin.serialization")
 }
 
+
 kotlin {
-    targets.all {
-        compilations.all {
-            compileTaskProvider.configure {
-                compilerOptions {
-                    freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
-                }
-            }
-        }
+    compilerOptions {
+        jvmTarget.set(JVM_17)
     }
+}
 
-    jvm {
-        compilations.all {
-            compileTaskProvider.configure {
-                compilerOptions {
-                    jvmTarget.set(JvmTarget.JVM_17)
-                }
-            }
-        }
-        testRuns["test"].executionTask.configure {
-            useJUnitPlatform()
-        }
-    }
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
 
-    sourceSets {
-        val commonMain by getting {
-            dependencies {
-                api(libs.bundles.kotlinx.datetime)
-                api(libs.bundles.kotlinx.serialization)
-            }
-        }
-    }
+tasks.named("compileJava", JavaCompile::class.java) {
+    options.compilerArgumentProviders.add(CommandLineArgumentProvider {
+        // Provide compiled Kotlin classes to javac – needed for Java/Kotlin mixed sources to work
+        listOf("--patch-module", "EnviroPi.common=${sourceSets["main"].output.asPath}")
+    })
+}
+
+dependencies {
+    api(libs.bundles.kotlinx.datetime)
+    api(libs.bundles.kotlinx.serialization)
 }

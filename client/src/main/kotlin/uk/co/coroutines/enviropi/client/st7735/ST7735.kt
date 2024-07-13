@@ -28,6 +28,7 @@ import com.diozero.api.SpiClockMode
 import com.diozero.api.SpiDevice
 import kotlinx.coroutines.delay
 import org.tinylog.Logger.info
+import uk.co.coroutines.enviropi.client.IDisplay
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferUShort
 import java.lang.Math.PI
@@ -48,7 +49,7 @@ class ST7735 private constructor(
     private val bgr: Boolean = true,
     private val offsetLeft: Int = (ST7735_COLS - deviceWidth).floorDiv(2),
     private val offsetTop: Int = (ST7735_ROWS - deviceHeight).floorDiv(2),
-) : AutoCloseable {
+) : IDisplay {
 
     companion object {
 
@@ -153,9 +154,9 @@ class ST7735 private constructor(
 
     private val rotationRadians = PI / 2 * (rotation / 90)
 
-    val width: Int = if (rotation == 0 || rotation == 180) deviceWidth else deviceHeight
+    override val width: Int = if (rotation == 0 || rotation == 180) deviceWidth else deviceHeight
 
-    val height: Int = if (rotation == 0 || rotation == 180) deviceHeight else deviceWidth
+    override val height: Int = if (rotation == 0 || rotation == 180) deviceHeight else deviceWidth
 
     private suspend fun initialise() {
         info { "ST7735 device initialising" }
@@ -339,7 +340,7 @@ class ST7735 private constructor(
     /**
      * Should be the correct width & height.
      */
-    fun display(bufferedImage: BufferedImage) {
+    override fun display(bufferedImage: BufferedImage) {
         val drawImage = bufferedImage.format(rotation)
         setWindow()
         data((drawImage.raster.dataBuffer as DataBufferUShort).data)
