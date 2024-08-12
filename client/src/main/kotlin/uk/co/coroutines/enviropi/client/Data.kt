@@ -77,8 +77,10 @@ val exampleData2 = flow {
 
 suspend fun Flow<Data>.outputTo(display: IDisplay, debug: Boolean = false) {
     fun flip(n: Double): Double = display.height - n
-
     val halfHeight = display.height / 2
+
+    println(display.width)
+    println(display.height)
 
     runningFold(listOf<Data>()) { acc, data -> (acc + data).takeLast(display.width) }
         .filter { it.size >= 2 }
@@ -94,7 +96,7 @@ suspend fun Flow<Data>.outputTo(display: IDisplay, debug: Boolean = false) {
             val imageHeight = if (debug) 500 else display.height
             val imageWidth = if (debug) 500 else display.width
             display.display(
-                BufferedImage(imageHeight, 500, TYPE_USHORT_565_RGB).apply {
+                BufferedImage(imageWidth, imageHeight, TYPE_USHORT_565_RGB).apply {
                     createGraphics().run {
                         if (debug) {
                             transform = AffineTransform().apply {
@@ -125,9 +127,11 @@ suspend fun Flow<Data>.outputTo(display: IDisplay, debug: Boolean = false) {
                                 colors
                             )
                         )
-                        drawLine(5, gradientBottom, 5, gradientTop)
 
-                        drawLine(0, degreeToPixel(mid), display.width, degreeToPixel(mid))
+                        if (debug) {
+                            drawLine(5, gradientBottom, 5, gradientTop)
+                            drawLine(0, degreeToPixel(mid), display.width, degreeToPixel(mid))
+                        }
 
                         temperatures.singleOrNull()
                             ?.let {

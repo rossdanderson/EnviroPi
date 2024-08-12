@@ -8,8 +8,8 @@ import javax.swing.JPanel
 import kotlin.properties.Delegates.observable
 
 class SwingDisplay: IDisplay {
-    override val width: Int = 180
-    override val height: Int = 60
+    override val width: Int = 160
+    override val height: Int = 80
 
     private val imagePanel = object : JPanel() {
         var image: BufferedImage? by observable(null) { _, _, new ->
