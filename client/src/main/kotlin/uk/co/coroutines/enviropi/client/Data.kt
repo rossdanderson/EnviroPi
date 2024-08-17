@@ -4,24 +4,47 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.tinylog.kotlin.Logger
-import java.awt.Color.*
+import uk.co.coroutines.enviropi.client.Resources.colors
+import uk.co.coroutines.enviropi.client.Resources.fractions
+import java.awt.BasicStroke
+import java.awt.Color.decode
 import java.awt.LinearGradientPaint
+import java.awt.RenderingHints.KEY_ANTIALIASING
+import java.awt.RenderingHints.VALUE_ANTIALIAS_OFF
+import java.awt.RenderingHints.VALUE_ANTIALIAS_ON
 import java.awt.geom.AffineTransform
+import java.awt.geom.Path2D
 import java.awt.image.BufferedImage
 import java.awt.image.BufferedImage.TYPE_USHORT_565_RGB
+import kotlin.collections.first
+import kotlin.collections.last
 import kotlin.math.roundToInt
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
 
+data class Point2D(
+    val x: Double,
+    val y: Double
+) {
+    operator fun get(i: Int) = when (i) {
+        0 -> x
+        1 -> y
+        else -> throw IndexOutOfBoundsException()
+    }
+}
 
 data class Data(
     val lux: Double,
     val temperature: Double,
     val pressure: Double,
     val humidity: Double,
+    val instant: Instant,
 )
 
 val exampleData = flow {
@@ -44,10 +67,10 @@ val exampleData = flow {
                 lux,
                 temperature,
                 pressure,
-                humidity
+                humidity,
+                Clock.System.now(),
             )
         )
-        delay(100)
     }
 }
 
@@ -68,24 +91,63 @@ val exampleData2 = flow {
                 lux,
                 temperature++,
                 pressure,
-                humidity
+                humidity,
+                Clock.System.now(),
             )
         )
     }
     awaitCancellation()
 }
 
-suspend fun Flow<Data>.outputTo(display: IDisplay, debug: Boolean = false) {
+suspend fun Flow<Data>.outputTo(
+    display: IDisplay,
+    debug: Boolean = false,
+    imageHeight: Int = display.height,
+    imageWidth: Int = display.width
+) {
     fun flip(n: Double): Double = display.height - n
     val halfHeight = display.height / 2
 
-    println(display.width)
-    println(display.height)
+    val time = flow {
+        while (true) {
+            emit(
+                Clock.System.now()
+                    .let { it - it.nanosecondsOfSecond.nanoseconds }
+                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                    .time
+            )
+            delay(1000)
+        }
+    }
 
-    runningFold(listOf<Data>()) { acc, data -> (acc + data).takeLast(display.width) }
-        .filter { it.size >= 2 }
-        .onEach { dataPoints ->
-            val temperatures = dataPoints.map(Data::temperature)
+    val sampleTime = 250.milliseconds
+    val historyTime = 1.days
+
+    combine(
+        time,
+        runningFold(listOf<Data>()) { history, data ->
+            println("${history.size} of ${(historyTime / sampleTime).toLong()}")
+            history.dropWhile { data.instant - it.instant >= historyTime } + data
+        }
+            .filter { it.size >= 2 }
+            .map { samples ->
+                val take = minOf(samples.size, display.width)
+                val step = samples.size.toDouble() / take
+                (0 until take).map { i ->
+                    val groupStart = (step * (i)).roundToInt().coerceAtMost(samples.size - 1)
+                    val groupEnd = (step * (i + 1)).roundToInt().coerceAtMost(samples.size - 1)
+
+                    samples.slice(groupStart..groupEnd)
+                        .map { it.temperature }
+                        .average()
+                }
+            }
+            .transform {
+                emit(it)
+                delay(sampleTime)
+            }
+    ) { time, temperatures -> time to temperatures }
+        .onEach { (time, temperatures) ->
             val min = temperatures.min()
             val max = temperatures.max()
             val mid = (max + min) / 2
@@ -93,26 +155,28 @@ suspend fun Flow<Data>.outputTo(display: IDisplay, debug: Boolean = false) {
 
             val stepPx = display.width.toDouble() / (temperatures.size - 1)
 
-            val imageHeight = if (debug) 500 else display.height
-            val imageWidth = if (debug) 500 else display.width
             display.display(
                 BufferedImage(imageWidth, imageHeight, TYPE_USHORT_565_RGB).apply {
                     createGraphics().run {
+                        setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON)
+                        color = decode("#1D2B53")
+                        fillRect(0, 0, display.width, display.height)
+
                         if (debug) {
                             transform = AffineTransform().apply {
-                                translate(imageWidth.toDouble() / 2 - display.width / 2, imageHeight.toDouble() / 2 - display.height / 2)
+                                translate(
+                                    imageWidth.toDouble() / 2 - display.width / 2,
+                                    imageHeight.toDouble() / 2 - display.height / 2
+                                )
                             }
-                            color = WHITE
+                            color = Resources.white
                             drawRect(-1, -1, display.width + 2, display.height + 2)
                         }
-
-                        val colors = arrayOf(RED, YELLOW, GREEN, BLUE, WHITE)
-                        val fractions = floatArrayOf(0f, 0.25f, 0.5f, 0.650f, 1f)
 
                         val midLine = flip(mid * degreePx)
                         val shift = -(midLine - halfHeight)
 
-                        fun degreeToPixel(n: Double): Int = (flip(n * degreePx) + shift).roundToInt()
+                        fun degreeToPixel(n: Double): Double = (flip(n * degreePx) + shift)
 
                         val gradientBottom = degreeToPixel(0.0)
                         val gradientTop = degreeToPixel(40.0)
@@ -128,47 +192,52 @@ suspend fun Flow<Data>.outputTo(display: IDisplay, debug: Boolean = false) {
                             )
                         )
 
-                        if (debug) {
-                            drawLine(5, gradientBottom, 5, gradientTop)
-                            drawLine(0, degreeToPixel(mid), display.width, degreeToPixel(mid))
+                        if (debug) drawLine(5, gradientBottom.roundToInt(), 5, gradientTop.roundToInt())
+
+                        stroke = BasicStroke(3f)
+                        val path = Path2D.Float()
+
+                        val points = temperatures
+                            .flatMapIndexed { index, y ->
+                                listOf(Point2D(stepPx * index, degreeToPixel(y)))
+                            }
+                        path.moveTo(points.first()[0], points.first()[1])
+
+                        for (i in 1 until points.size) {
+                            val x0 = points[i - 1][0]
+                            val y0 = points[i - 1][1]
+                            val x1 = points[i][0]
+                            val y1 = points[i][1]
+
+                            val midX = (x0 + x1) / 2
+                            val midY = (y0 + y1) / 2
+
+                            path.quadTo(x0, y0, midX, midY)
                         }
 
-                        temperatures.singleOrNull()
-                            ?.let {
-                                drawLine(
-                                    0,
-                                    (it * degreePx).roundToInt(),
-                                    display.width,
-                                    (it * degreePx).roundToInt()
-                                )
-                            }
-                            ?: temperatures
-                                .windowed(2, 1)
-                                .forEachIndexed { index, (y1, y2) ->
-                                    val x1 = (stepPx * index).roundToInt()
-                                    val x2 = (x1 + stepPx).roundToInt()
-                                    drawLine(
-                                        x1,
-                                        degreeToPixel(y1),
-                                        x2,
-                                        degreeToPixel(y2)
-                                    )
-                                }
+                        // Connect to the last point
+                        path.lineTo(points.last()[0], points.last()[1])
 
-                        color = MAGENTA
-                        drawString("%.2f".format(max), 5, 10)
-                        drawString("%.2f".format(min), 5, display.height - 5)
-                        color = WHITE
+                        draw(path)
+
+                        stroke = BasicStroke(1f)
+
+                        if (debug) {
+                            color = Resources.white
+                            drawLine(0, degreeToPixel(mid).roundToInt(), display.width, degreeToPixel(mid).roundToInt())
+                        }
+
+                        setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_OFF)
+                        font = Resources.font.deriveFont(12f)
+                        color = Resources.peach
+                        drawString("⬆%04.1f".format(max), 2, 12)
+                        drawString("⬇%04.1f".format(min), 2, display.height - 2)
                         drawString(
-                            "%.2f".format(temperatures.last()),
-                            display.width - 30,
-                            display.height / 2 + 10
+                            "%04.1f∧".format(temperatures.last()),
+                            display.width - 47,
+                            display.height - 2
                         )
-                        val time = Clock.System.now()
-                            .let { it - it.nanosecondsOfSecond.nanoseconds }
-                            .toLocalDateTime(TimeZone.currentSystemDefault())
-                            .time
-                        drawString(time.toString(), display.width - 47, 10)
+                        drawString(time.toString(), display.width - 63, 12)
                         dispose()
                     }
                 }

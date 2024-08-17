@@ -2,10 +2,10 @@
 <project version="4">
   <component name="RemoteTargetsManager">
     <targets>
-      <target name="root@enviropi:22" type="ssh/sftp" uuid="50adcc48-acbe-41a3-9559-d59a96ff1acb">
+      <target name="root@enviropi:23" type="ssh/sftp" uuid="81444be8-e8f9-4b2d-81db-b8bd92d73547">
         <config>
           <option name="projectRootOnTarget" value="/home/pi/EnviroPi" />
-          <option name="serverName" value="root@enviropi:22 agent" />
+          <option name="serverName" value="root@enviropi:22" />
         </config>
         <ContributedStateBase type="JavaLanguageRuntime">
           <config>

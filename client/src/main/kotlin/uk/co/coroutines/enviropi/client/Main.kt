@@ -7,7 +7,7 @@ import uk.co.coroutines.enviropi.client.st7735.ST7735
 
 fun main(): Unit = runBlocking {
     try {
-        ST7735().use { EnviroSensor.dataFlow.outputTo(it) }
+        ST7735().use { EnviroSensor.dataFlow.outputTo(display = it) }
     } catch (t: Throwable) {
         warn(t)
     } finally {

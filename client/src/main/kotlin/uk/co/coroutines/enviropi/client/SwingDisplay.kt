@@ -7,7 +7,7 @@ import javax.swing.JFrame
 import javax.swing.JPanel
 import kotlin.properties.Delegates.observable
 
-class SwingDisplay: IDisplay {
+class SwingDisplay : IDisplay {
     override val width: Int = 160
     override val height: Int = 80
 
@@ -21,7 +21,7 @@ class SwingDisplay: IDisplay {
 
         override fun paintComponent(g: Graphics) {
             super.paintComponent(g)
-            image .let { g.drawImage(it, 0, 0, this) }
+            image.let { g.drawImage(it, 0, 0, this) }
         }
     }
 

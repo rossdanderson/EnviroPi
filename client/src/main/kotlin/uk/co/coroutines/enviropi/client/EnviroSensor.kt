@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.datetime.Clock
 import org.tinylog.kotlin.Logger.info
 import uk.co.coroutines.enviropi.client.ltr559.LTR559
-import kotlin.time.Duration.Companion.seconds
 
 object EnviroSensor {
     val dataFlow = flow {
@@ -32,10 +31,8 @@ object EnviroSensor {
                         humidity
                     )
 
-                    emit(Data(lux, temperature, pressure, humidity))
-
                     val end = Clock.System.now()
-                    delay(1.seconds - (end - start))
+                    emit(Data(lux, temperature, pressure, humidity, end))
                 }
             }
         }
