@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
@@ -8,12 +6,6 @@ plugins {
 
 application {
     mainClass.set("uk.co.coroutines.enviropi.client.DemoMainKt")
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JVM_17)
-    }
 }
 
 tasks.withType<Test> {

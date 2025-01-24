@@ -3,11 +3,11 @@ rootProject.name = "EnviroPi"
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
-            version("ktor", "3.0.0-beta-2")
-            version("kotlinx-serialization", "1.7.1")
-            version("kotlinx-coroutines", "1.9.0-RC")
-            version("kotlinx-datetime", "0.6.0")
-            version("tinylog", "2.4.1")
+            version("ktor", "3.0.3")
+            version("kotlinx-serialization", "1.8.0")
+            version("kotlinx-coroutines", "1.10.1")
+            version("kotlinx-datetime", "0.6.1")
+            version("tinylog", "2.7.0")
 
             library("slf4j-tinylog", "org.tinylog", "slf4j-tinylog")
                 .versionRef("tinylog")
@@ -92,6 +92,5 @@ dependencyResolutionManagement {
 include(
     ":common",
     ":client",
-//    ":server"
 )
 
