@@ -1,10 +1,13 @@
+import org.hidetake.groovy.ssh.core.Remote
+import org.hidetake.groovy.ssh.core.RunHandler
+import org.hidetake.groovy.ssh.session.SessionHandler
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
 
 plugins {
   kotlin("jvm")
   kotlin("plugin.serialization")
   id("com.ncorti.ktfmt.gradle")
-  id("com.github.johnrengelman.shadow") version "8.1.1"
+  id("org.hidetake.ssh") version "2.11.2"
   application
 }
 
@@ -28,3 +31,34 @@ dependencies {
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
 }
+
+val deploy by
+    tasks.registering {
+      dependsOn(tasks.distTar)
+
+      val tarFile = tasks.distTar.map { it.outputs.files.singleFile }
+
+      doLast {
+        ssh.run(
+            delegateClosureOf<RunHandler> {
+              session(
+                  Remote(
+                      mutableMapOf<String, Any>(
+                          "host" to "enviropi",
+                          "user" to "pi",
+                      )),
+                  delegateClosureOf<SessionHandler> {
+                    val tar = tarFile.get()
+                    put(
+                        hashMapOf(
+                            "from" to tar.path.toString(),
+                            "into" to "/home/pi",
+                        ),
+                    )
+                    execute("tar -xvf /home/pi/${tar.name}")
+                  },
+              )
+            },
+        )
+      }
+    }
