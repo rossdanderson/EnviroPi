@@ -4,9 +4,9 @@ import java.awt.image.BufferedImage
 
 interface IDisplay : AutoCloseable {
 
-    val width: Int
+  val width: Int
 
-    val height: Int
+  val height: Int
 
-    fun display(bufferedImage: BufferedImage)
+  fun display(bufferedImage: BufferedImage)
 }

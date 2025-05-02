@@ -5,16 +5,14 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 interface IMutableRegister<T> : IRegister<T> {
-    override var value: T
+  override var value: T
 
-    fun flush()
+  fun flush()
 }
 
 @OptIn(ExperimentalContracts::class)
 fun <T, R : IMutableRegister<T>> R.write(block: R.() -> Unit) {
-    contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
-    }
-    block()
-    flush()
+  contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+  block()
+  flush()
 }

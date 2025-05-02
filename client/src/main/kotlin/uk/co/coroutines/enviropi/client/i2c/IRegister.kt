@@ -5,16 +5,14 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 interface IRegister<T> {
-    val value: T
+  val value: T
 
-    fun resetCache()
+  fun resetCache()
 }
 
 @OptIn(ExperimentalContracts::class)
-inline fun <T, R: IRegister<T>, O> R.read(block: R.() -> O): O {
-    contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
-    }
-    resetCache()
-    return block()
+inline fun <T, R : IRegister<T>, O> R.read(block: R.() -> O): O {
+  contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+  resetCache()
+  return block()
 }
