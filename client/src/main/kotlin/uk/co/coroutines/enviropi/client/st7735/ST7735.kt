@@ -25,13 +25,13 @@ import com.diozero.api.DigitalOutputDevice
 import com.diozero.api.SpiClockMode
 import com.diozero.api.SpiDevice
 import com.diozero.api.SpiDeviceInterface
-import kotlinx.coroutines.delay
-import org.tinylog.Logger.info
-import uk.co.coroutines.enviropi.client.IDisplay
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferUShort
 import java.lang.Math.PI
 import java.nio.ByteBuffer
+import kotlinx.coroutines.delay
+import org.tinylog.Logger.info
+import uk.co.coroutines.enviropi.client.IDisplay
 
 /** Adapted from https://github.com/pimoroni/st7735-python */
 class ST7735

@@ -1,11 +1,9 @@
 package uk.co.coroutines.enviropi.client
 
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
@@ -29,19 +27,9 @@ import java.awt.geom.Path2D
 import java.awt.image.BufferedImage
 import java.awt.image.BufferedImage.TYPE_USHORT_565_RGB
 import kotlin.math.roundToInt
-import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
-
-data class Point2D(val x: Double, val y: Double) {
-  operator fun get(i: Int) =
-      when (i) {
-        0 -> x
-        1 -> y
-        else -> throw IndexOutOfBoundsException()
-      }
-}
 
 data class Data(
     val lux: Double,
@@ -50,30 +38,6 @@ data class Data(
     val humidity: Double,
     val instant: Instant,
 )
-
-val exampleData2 = flow {
-  var lux = 1000.0
-  var temperature = 0.0
-  var pressure = 120.0
-  var humidity = 60.0
-  (0..20).forEach {
-    lux += Random.nextDouble(-10.0, 10.0)
-
-    pressure += Random.nextDouble(-10.0, 10.0)
-
-    humidity += Random.nextDouble(-2.0, 2.0)
-    humidity = humidity.coerceAtMost(90.0).coerceAtLeast(10.0)
-    emit(
-        Data(
-            lux,
-            temperature++,
-            pressure,
-            humidity,
-            Clock.System.now(),
-        ))
-  }
-  awaitCancellation()
-}
 
 suspend fun Flow<Data>.outputTo(
     display: IDisplay,

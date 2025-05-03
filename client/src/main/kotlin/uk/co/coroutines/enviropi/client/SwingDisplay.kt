@@ -42,7 +42,5 @@ class SwingDisplay : IDisplay {
 
   override val isDiozero: Boolean = false
 
-  override fun close() {
-    //        frame
-  }
+  override fun close() {}
 }

@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.plus
 import kotlinx.datetime.Clock
 import org.tinylog.kotlin.Logger.info
 import uk.co.coroutines.enviropi.client.ltr559.LTR559
@@ -20,96 +19,104 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 interface ISensorFactory {
-  suspend fun CoroutineScope.create(sampleDelay: Duration): ISensor
+  suspend fun create(scope: CoroutineScope, sampleDelay: Duration): ISensor
 
   val isDiozero: Boolean
 
   companion object {
-    val default = object : ISensorFactory {
-      override suspend fun CoroutineScope.create(sampleDelay: Duration): ISensor {
-        val sensorJob = SupervisorJob(coroutineContext[Job])
-        val sensorScope = CoroutineScope(coroutineContext + Dispatchers.IO + sensorJob)
+    val default =
+        object : ISensorFactory {
+          override suspend fun create(scope: CoroutineScope, sampleDelay: Duration): ISensor {
+            info { "Creating default sensor" }
 
-        val dataFlow =
-            flow {
-              LTR559().use { ltr559 ->
-                BMx280.I2CBuilder.builder(1).build().use { bme280 ->
-                  while (!bme280.isDataAvailable || !ltr559.dataAvailable) {
-                    delay(10.milliseconds)
-                  }
+            val sensorJob = SupervisorJob(scope.coroutineContext[Job])
+            val sensorScope = CoroutineScope(scope.coroutineContext + Dispatchers.IO + sensorJob)
 
-                  while (currentCoroutineContext().isActive) {
-                    val lux = ltr559.getLux()
-                    val (temperature, pressure, humidity) = bme280.values.map(Float::toDouble)
+            val dataFlow =
+                flow {
+                      LTR559().use { ltr559 ->
+                        BMx280.I2CBuilder.builder(1).build().use { bme280 ->
+                          while (!bme280.isDataAvailable || !ltr559.dataAvailable) {
+                            delay(10.milliseconds)
+                          }
 
-                    info {
-                      "Lux: {0.##}. Temperature: {0.##} C. Pressure: {0.##} hPa. Relative Humidity: {0.##}% RH"
-                          .format(lux, temperature, pressure, humidity)
+                          while (currentCoroutineContext().isActive) {
+                            val lux = ltr559.getLux()
+                            val (temperature, pressure, humidity) =
+                                bme280.values.map(Float::toDouble)
+
+                            info {
+                              "Lux: %.2f. Temperature: %.2f C. Pressure: %.2f hPa. Relative Humidity: %.2f%% RH"
+                                  .format(lux, temperature, pressure, humidity)
+                            }
+
+                            val end = Clock.System.now()
+                            this.emit(Data(lux, temperature, pressure, humidity, end))
+                            delay(sampleDelay)
+                          }
+                        }
+                      }
                     }
+                    .stateIn(sensorScope)
 
-                    val end = Clock.System.now()
-                    emit(Data(lux, temperature, pressure, humidity, end))
-                    delay(sampleDelay)
-                  }
-                }
+            return object : ISensor {
+              override val dataFlow = dataFlow
+
+              override fun close() {
+                sensorJob.cancel()
               }
             }
-                .stateIn(sensorScope)
-
-        return object : ISensor {
-          override val dataFlow = dataFlow
-
-          override fun close() {
-            sensorJob.cancel()
           }
+
+          override val isDiozero: Boolean = true
         }
-      }
 
-      override val isDiozero: Boolean = true
-    }
+    val mock =
+        object : ISensorFactory {
+          override suspend fun create(scope: CoroutineScope, sampleDelay: Duration): ISensor {
+            info { "Creating mock sensor" }
 
-    val mock = object : ISensorFactory {
-      override suspend fun CoroutineScope.create(sampleDelay: Duration): ISensor {
-        val sensorJob = SupervisorJob(coroutineContext[Job])
-        val dataFlow =
-            flow {
-              var lux = 1000.0
-              var temperature = 20.0
-              var pressure = 120.0
-              var humidity = 60.0
-              while (true) {
-                lux += Random.nextDouble(-10.0, 10.0)
+            val sensorJob = SupervisorJob(scope.coroutineContext[Job])
+            val sensorScope = CoroutineScope(scope.coroutineContext + Dispatchers.IO + sensorJob)
+            val dataFlow =
+                flow {
+                      var lux = 1000.0
+                      var temperature = 20.0
+                      var pressure = 120.0
+                      var humidity = 60.0
+                      while (currentCoroutineContext().isActive) {
+                        lux += Random.nextDouble(-10.0, 10.0)
 
-                temperature += Random.nextDouble(-4.0, 4.0)
-                temperature = temperature.coerceAtMost(40.0).coerceAtLeast(0.0)
+                        temperature += Random.nextDouble(-4.0, 4.0)
+                        temperature = temperature.coerceAtMost(40.0).coerceAtLeast(0.0)
 
-                pressure += Random.nextDouble(-10.0, 10.0)
+                        pressure += Random.nextDouble(-10.0, 10.0)
 
-                humidity += Random.nextDouble(-2.0, 2.0)
-                humidity = humidity.coerceAtMost(90.0).coerceAtLeast(10.0)
-                emit(
-                    Data(
-                        lux,
-                        temperature,
-                        pressure,
-                        humidity,
-                        Clock.System.now(),
-                    )
-                )
+                        humidity += Random.nextDouble(-2.0, 2.0)
+                        humidity = humidity.coerceAtMost(90.0).coerceAtLeast(10.0)
+                        this.emit(
+                            Data(
+                                lux,
+                                temperature,
+                                pressure,
+                                humidity,
+                                Clock.System.now(),
+                            ))
+                        delay(sampleDelay)
+                      }
+                    }
+                    .stateIn(sensorScope)
+
+            return object : ISensor {
+              override val dataFlow: StateFlow<Data> = dataFlow
+
+              override fun close() {
+                sensorJob.cancel()
               }
             }
-                .stateIn(this + sensorJob)
-
-        return object : ISensor {
-          override val dataFlow: StateFlow<Data> = dataFlow
-
-          override fun close() {
-            sensorJob.cancel()
           }
-        }
-      }
 
-      override val isDiozero: Boolean = false
-    }
+          override val isDiozero: Boolean = false
+        }
   }
 }

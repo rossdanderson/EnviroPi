@@ -9,22 +9,24 @@ interface IDisplayFactory {
   val isDiozero: Boolean
 
   companion object {
-    val default = object : IDisplayFactory {
-      override suspend fun create(): IDisplay {
-        info { "Creating default display" }
-        return ST7735()
-      }
+    val default =
+        object : IDisplayFactory {
+          override suspend fun create(): IDisplay {
+            info { "Creating default display" }
+            return ST7735()
+          }
 
-      override val isDiozero: Boolean = true
-    }
+          override val isDiozero: Boolean = true
+        }
 
-    val swing = object : IDisplayFactory {
-      override suspend fun create(): IDisplay {
-        info { "Creating swing display" }
-        return SwingDisplay()
-      }
+    val swing =
+        object : IDisplayFactory {
+          override suspend fun create(): IDisplay {
+            info { "Creating swing display" }
+            return SwingDisplay()
+          }
 
-      override val isDiozero: Boolean = false
-    }
+          override val isDiozero: Boolean = false
+        }
   }
 }

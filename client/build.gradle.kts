@@ -11,19 +11,15 @@ plugins {
   application
 }
 
-application { mainClass.set("io.ktor.server.cio.EngineMain") }
+application { mainClass.set("uk.co.coroutines.enviropi.client.ApplicationKt") }
 
-kotlin {
-  compilerOptions {
-    jvmTarget.set(JVM_17)
-  }
-}
+kotlin { compilerOptions { jvmTarget.set(JVM_17) } }
 
 tasks.withType<Test> { useJUnitPlatform() }
 
 dependencies {
   implementation(libs.bundles.kotlinx.datetime)
-//  implementation(libs.bundles.kotlinx.serialization)
+  //  implementation(libs.bundles.kotlinx.serialization)
   implementation(libs.bundles.kotlinx.coroutines)
   implementation(libs.bundles.tinylog)
   implementation(libs.bundles.ktor.server)

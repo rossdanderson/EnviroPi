@@ -1,7 +1,7 @@
 package uk.co.coroutines.enviropi.client
 
-import kotlinx.coroutines.flow.StateFlow
 import java.io.Closeable
+import kotlinx.coroutines.flow.StateFlow
 
 interface ISensor : Closeable {
   val dataFlow: StateFlow<Data>
