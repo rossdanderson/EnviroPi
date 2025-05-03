@@ -11,12 +11,11 @@ plugins {
   application
 }
 
-application { mainClass.set("uk.co.coroutines.enviropi.client.MainKt") }
+application { mainClass.set("io.ktor.server.cio.EngineMain") }
 
 kotlin {
   compilerOptions {
     jvmTarget.set(JVM_17)
-    moduleName = "EnviroPi.client.main"
   }
 }
 
@@ -24,9 +23,10 @@ tasks.withType<Test> { useJUnitPlatform() }
 
 dependencies {
   implementation(libs.bundles.kotlinx.datetime)
-  implementation(libs.bundles.kotlinx.serialization)
+//  implementation(libs.bundles.kotlinx.serialization)
   implementation(libs.bundles.kotlinx.coroutines)
   implementation(libs.bundles.tinylog)
+  implementation(libs.bundles.ktor.server)
   implementation("com.diozero:diozero-core:1.4.1")
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")

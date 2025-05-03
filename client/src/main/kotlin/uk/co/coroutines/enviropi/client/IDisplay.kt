@@ -9,4 +9,6 @@ interface IDisplay : AutoCloseable {
   val height: Int
 
   fun display(bufferedImage: BufferedImage)
+
+  val isDiozero: Boolean
 }

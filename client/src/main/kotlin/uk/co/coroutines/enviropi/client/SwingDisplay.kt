@@ -40,6 +40,8 @@ class SwingDisplay : IDisplay {
     imagePanel.image = bufferedImage
   }
 
+  override val isDiozero: Boolean = false
+
   override fun close() {
     //        frame
   }

@@ -1,5 +1,23 @@
 package uk.co.coroutines.enviropi.client
 
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.runningFold
+import kotlinx.coroutines.flow.transform
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import org.tinylog.kotlin.Logger
+import uk.co.coroutines.enviropi.client.Resources.colors
+import uk.co.coroutines.enviropi.client.Resources.fractions
 import java.awt.BasicStroke
 import java.awt.Color.decode
 import java.awt.LinearGradientPaint
@@ -15,25 +33,6 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.runningFold
-import kotlinx.coroutines.flow.transform
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import org.tinylog.kotlin.Logger
-import uk.co.coroutines.enviropi.client.Resources.colors
-import uk.co.coroutines.enviropi.client.Resources.fractions
 
 data class Point2D(val x: Double, val y: Double) {
   operator fun get(i: Int) =
@@ -51,32 +50,6 @@ data class Data(
     val humidity: Double,
     val instant: Instant,
 )
-
-val exampleData = flow {
-  var lux = 1000.0
-  var temperature = 20.0
-  var pressure = 120.0
-  var humidity = 60.0
-  while (true) {
-    lux += Random.nextDouble(-10.0, 10.0)
-
-    temperature += Random.nextDouble(-4.0, 4.0)
-    temperature = temperature.coerceAtMost(40.0).coerceAtLeast(0.0)
-
-    pressure += Random.nextDouble(-10.0, 10.0)
-
-    humidity += Random.nextDouble(-2.0, 2.0)
-    humidity = humidity.coerceAtMost(90.0).coerceAtLeast(10.0)
-    emit(
-        Data(
-            lux,
-            temperature,
-            pressure,
-            humidity,
-            Clock.System.now(),
-        ))
-  }
-}
 
 val exampleData2 = flow {
   var lux = 1000.0
@@ -111,43 +84,28 @@ suspend fun Flow<Data>.outputTo(
   fun flip(n: Double): Double = display.height - n
   val halfHeight = display.height / 2
 
-  val time = flow {
-    while (true) {
-      emit(
-          Clock.System.now()
-              .let { it - it.nanosecondsOfSecond.nanoseconds }
-              .toLocalDateTime(TimeZone.currentSystemDefault())
-              .time)
-      delay(1000)
-    }
-  }
-
   val sampleTime = 250.milliseconds
   val historyTime = 1.days
 
-  combine(
-          time,
-          runningFold(listOf<Data>()) { history, data ->
-                history.dropWhile { data.instant - it.instant >= historyTime } + data
-              }
-              .filter { it.size >= 2 }
-              .map { samples ->
-                val take = minOf(samples.size, display.width)
-                val step = samples.size.toDouble() / take
-                (0 until take).map { i ->
-                  val groupStart = (step * (i)).roundToInt().coerceAtMost(samples.size - 1)
-                  val groupEnd = (step * (i + 1)).roundToInt().coerceAtMost(samples.size - 1)
+  runningFold(listOf<Data>()) { history, data ->
+        history.dropWhile { data.instant - it.instant >= historyTime } + data
+      }
+      .filter { it.size >= 2 }
+      .map { samples ->
+        val take = minOf(samples.size, display.width)
+        val step = samples.size.toDouble() / take
+        (0 until take).map { i ->
+          val groupStart = (step * (i)).roundToInt().coerceAtMost(samples.size - 1)
+          val groupEnd = (step * (i + 1)).roundToInt().coerceAtMost(samples.size - 1)
 
-                  samples.slice(groupStart..groupEnd).map { it.temperature }.average()
-                }
-              }
-              .transform {
-                emit(it)
-                delay(sampleTime)
-              }) { time, temperatures ->
-            time to temperatures
-          }
-      .onEach { (time, temperatures) ->
+          samples.slice(groupStart..groupEnd).map { it.temperature }.average()
+        }
+      }
+      .transform {
+        emit(it)
+        delay(sampleTime)
+      }
+      .onEach { temperatures ->
         val min = temperatures.min()
         val max = temperatures.max()
         val mid = (max + min) / 2
@@ -181,9 +139,9 @@ suspend fun Flow<Data>.outputTo(
                 val gradientBottom = degreeToPixel(0.0)
                 val gradientTop = degreeToPixel(40.0)
 
-                setPaint(
+                paint =
                     LinearGradientPaint(
-                        0f, gradientTop.toFloat(), 0f, gradientBottom.toFloat(), fractions, colors))
+                        0f, gradientTop.toFloat(), 0f, gradientBottom.toFloat(), fractions, colors)
 
                 if (debug) drawLine(5, gradientBottom.roundToInt(), 5, gradientTop.roundToInt())
 
@@ -231,7 +189,14 @@ suspend fun Flow<Data>.outputTo(
                 drawString("⬇%04.1f".format(min), 2, display.height - 2)
                 drawString(
                     "%04.1f∧".format(temperatures.last()), display.width - 47, display.height - 2)
-                drawString(time.toString(), display.width - 63, 12)
+                drawString(
+                    Clock.System.now()
+                        .let { it - it.nanosecondsOfSecond.nanoseconds }
+                        .toLocalDateTime(TimeZone.currentSystemDefault())
+                        .time
+                        .toString(),
+                    display.width - 63,
+                    12)
                 dispose()
               }
             })
