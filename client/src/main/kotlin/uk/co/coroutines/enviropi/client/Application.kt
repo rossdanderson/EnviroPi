@@ -17,9 +17,21 @@ import kotlinx.coroutines.runBlocking
 import org.tinylog.Logger.info
 import kotlin.time.Duration.Companion.seconds
 
-fun main() {
-  val sensorFactory = ISensorFactory.default
-  val displayFactory = IDisplayFactory.default
+fun main(args: Array<String>) {
+
+  val mode = args.getOrNull(0)
+  val sensorFactory: ISensorFactory
+  val displayFactory: IDisplayFactory
+  when (mode) {
+    "mock" -> {
+      sensorFactory = ISensorFactory.mock
+      displayFactory = IDisplayFactory.swing
+    }
+    else -> {
+      sensorFactory = ISensorFactory.default
+      displayFactory = IDisplayFactory.default
+    }
+  }
 
   val sensor = GlobalScope.async { with(sensorFactory) { create(GlobalScope, 1.seconds) } }
   val display =
