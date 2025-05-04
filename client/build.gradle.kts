@@ -24,6 +24,7 @@ dependencies {
   implementation(libs.bundles.tinylog)
   implementation(libs.bundles.ktor.server)
   implementation("com.diozero:diozero-core:1.4.1")
+  implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.8")
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
 }

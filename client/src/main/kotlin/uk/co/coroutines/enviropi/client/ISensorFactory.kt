@@ -1,6 +1,9 @@
 package uk.co.coroutines.enviropi.client
 
 import com.diozero.devices.BMx280
+import kotlin.random.Random
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,9 +17,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 import org.tinylog.kotlin.Logger.info
 import uk.co.coroutines.enviropi.client.ltr559.LTR559
-import kotlin.random.Random
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 interface ISensorFactory {
   suspend fun create(scope: CoroutineScope, sampleDelay: Duration): ISensor
@@ -77,7 +77,8 @@ interface ISensorFactory {
             info { "Creating mock sensor" }
 
             val sensorJob = SupervisorJob(scope.coroutineContext[Job])
-            val sensorScope = CoroutineScope(scope.coroutineContext + Dispatchers.IO + sensorJob)
+            val sensorScope =
+                CoroutineScope(scope.coroutineContext + Dispatchers.Default + sensorJob)
             val dataFlow =
                 flow {
                       var lux = 1000.0

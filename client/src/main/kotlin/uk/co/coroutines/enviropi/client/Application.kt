@@ -8,17 +8,21 @@ import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.collections.immutable.mutate
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.runningFold
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
+import org.intellij.lang.annotations.Language
 import org.tinylog.Logger.info
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 
-fun main(args: Array<String>) {
-
+suspend fun main(args: Array<String>): Unit = coroutineScope {
   val mode = args.getOrNull(0)
   val sensorFactory: ISensorFactory
   val displayFactory: IDisplayFactory
@@ -27,31 +31,42 @@ fun main(args: Array<String>) {
       sensorFactory = ISensorFactory.mock
       displayFactory = IDisplayFactory.swing
     }
+
     else -> {
       sensorFactory = ISensorFactory.default
       displayFactory = IDisplayFactory.default
     }
   }
 
-  val sensor = GlobalScope.async { with(sensorFactory) { create(GlobalScope, 1.seconds) } }
-  val display =
-      GlobalScope.async { with(displayFactory) { create() }.also { info { "Display created" } } }
-
-  GlobalScope.launch {
-    info { "Outputting sensor to display" }
-    sensor.await().dataFlow.outputTo(display = display.await())
-  }
+  val sensor = with(sensorFactory) { create(this@coroutineScope, 1.seconds) }
+  val display = with(displayFactory) { create() }.also { info { "Display created" } }
 
   info { "Launching server" }
+
+  val oneDayData =
+      sensor.dataFlow
+          .runningFold(persistentListOf<Data>()) { data, value ->
+            val earlier = Clock.System.now() - 1.days
+            data.mutate {
+              if (it.isNotEmpty()) while (it.first().instant < earlier) it.removeFirst()
+              it.add(value)
+            }
+          }
+          .drop(1)
+          .stateIn(this@coroutineScope)
+
+  launch {
+    info { "Outputting sensor to display" }
+    sensor.dataFlow.outputTo(display = display)
+  }
 
   embeddedServer(CIO, 8080) {
         routing {
           get("/") {
-            info { "Got request" }
-
             call.respondText(contentType = Html) {
               // language=HTML
-              """<!DOCTYPE html>
+              """
+<!DOCTYPE html>
 <html lang='en'>
 <head>
     <link rel='stylesheet'
@@ -69,19 +84,23 @@ fun main(args: Array<String>) {
 <body>
 <wa-page>
 <h1 slot='header'>EnviroPi</h1>
-    <div class='wa-stack' style="font-size: 32px;">
-        <div class='wa-flank wa-align-items-start'>
-            <wa-icon name="temperature-high"></wa-icon>
-            <p>${"%.2f °C".format(sensor.await().dataFlow.value.temperature)}</p>
-        </div>
-        <div class='wa-flank wa-align-items-start'>
-            <wa-icon name="droplet"></wa-icon>
-            <p>${"%.2f%%".format(sensor.await().dataFlow.value.humidity)}</p>
-        </div>
-    </div>
+    <div hx-trigger='load' hx-get='/table' hx-swap='outerHTML'></div>
 </wa-page>
 </body>
 </html>"""
+                  .trimIndent()
+            }
+          }
+          get("/table") {
+            call.respondText(contentType = Html) {
+              // language=HTML
+              """
+    <div class='wa-stack' style="font-size: 32px;" hx-trigger='load delay:1s' hx-get='/table'>
+        ${format(oneDayData.value, "%.2f °C", "temperature-high", Data::temperature)}
+        ${format(oneDayData.value, "%.2f%%", "droplet", Data::humidity)}
+        ${format(oneDayData.value, "%.2f", "sun", Data::lux)}
+    </div>
+          """
                   .trimIndent()
             }
           }
@@ -89,14 +108,26 @@ fun main(args: Array<String>) {
       }
       .apply {
         addShutdownHook {
-          runBlocking(NonCancellable) {
-            runCatching { sensor.await().close() }
-            runCatching { display.await().close() }
-          }
+          runCatching { sensor.close() }
+          runCatching { display.close() }
           if (displayFactory.isDiozero || sensorFactory.isDiozero) {
             Diozero.shutdown()
           }
         }
       }
-      .start(wait = true)
+      .startSuspend()
 }
+
+@Language("HTML")
+private fun format(data: List<Data>, format: String, icon: String, accessor: (Data) -> Double) = """
+<div class='wa-flank wa-align-items-start wa-gap-3'>
+    <wa-icon name="$icon"></wa-icon>
+    <div class='wa-stack wa-gap-1'>
+        <div class='wa-text-xl wa-text-center'>${format.format(accessor(data.last()))}</div>
+        <div class='wa-flex wa-gap-2 wa-text-sm wa-text-secondary wa-items-center'>
+            <div class='wa-min-w-16'>⬇ ${format.format(data.minOf { accessor(it) })}</div>
+            <div class='wa-min-w-16'>⬆ ${format.format(data.maxOf { accessor(it) })}</div>
+        </div>
+    </div>
+</div>
+""".trimIndent()
