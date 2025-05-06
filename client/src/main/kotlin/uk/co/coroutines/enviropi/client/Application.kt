@@ -1,5 +1,3 @@
-@file:OptIn(DelicateCoroutinesApi::class)
-
 package uk.co.coroutines.enviropi.client
 
 import com.diozero.util.Diozero
@@ -10,7 +8,6 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.runningFold
@@ -70,20 +67,22 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
 <html lang='en'>
 <head>
     <link rel='stylesheet'
-          href='https://early.webawesome.com/webawesome@3.0.0-alpha.11/dist/styles/themes/default.css'/>
-    <link rel='stylesheet' href='https://early.webawesome.com/webawesome@3.0.0-alpha.11/dist/styles/webawesome.css'/>
+          href='https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/styles/themes/matter.css'/>
+    <link rel='stylesheet'
+          href='https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/styles/utilities.css'/>
     <script type='module'
-            src='https://early.webawesome.com/webawesome@3.0.0-alpha.11/dist/webawesome.loader.js'></script>
-    <script src="https://unpkg.com/htmx.org@2.0.4"
-            integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
-            crossorigin="anonymous"></script>
+            src='https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/webawesome.loader.js'></script>
+    <script src='https://unpkg.com/htmx.org@2.0.4'
+            integrity='sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+'
+            crossorigin='anonymous'></script>
+
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>EnviroPi</title>
 </head>
 <body>
-<wa-page>
-<h1 slot='header'>EnviroPi</h1>
+<wa-page disable-navigation-toggle>
+    <h1 class='wa-heading-2xl' slot='header'>EnviroPi</h1>
     <div hx-trigger='load' hx-get='/table' hx-swap='outerHTML'></div>
 </wa-page>
 </body>
@@ -95,11 +94,12 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
             call.respondText(contentType = Html) {
               // language=HTML
               """
-    <div class='wa-stack' style="font-size: 32px;" hx-trigger='load delay:1s' hx-get='/table'>
-        ${format(oneDayData.value, "%.2f °C", "temperature-high", Data::temperature)}
-        ${format(oneDayData.value, "%.2f%%", "droplet", Data::humidity)}
-        ${format(oneDayData.value, "%.2f", "sun", Data::lux)}
-    </div>
+<div class='wa-grid' style='--min-column-size: 14rem' hx-trigger='load delay:1s' hx-get='/table' hx-swap='outerHTML'>
+    ${format(oneDayData.value, "temperature-half", "--wa-color-red-20", "Temperature", "%.2f" ,"°C", Data::temperature)}
+    ${format(oneDayData.value, "droplet", "--wa-color-blue-20", "Humidity", "%.2f","%", Data::humidity)}
+    ${format(oneDayData.value, "sun", "--wa-color-yellow-20", "Light", "%.2f", "lux", Data::lux)}
+    ${format(oneDayData.value, "gauge", "--wa-color-green-20", "Pressure", "%.2f", "hPa", Data::pressure)}
+</div>
           """
                   .trimIndent()
             }
@@ -119,15 +119,24 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
 }
 
 @Language("HTML")
-private fun format(data: List<Data>, format: String, icon: String, accessor: (Data) -> Double) = """
-<div class='wa-flank wa-align-items-start wa-gap-3'>
-    <wa-icon name="$icon"></wa-icon>
-    <div class='wa-stack wa-gap-1'>
-        <div class='wa-text-xl wa-text-center'>${format.format(accessor(data.last()))}</div>
-        <div class='wa-flex wa-gap-2 wa-text-sm wa-text-secondary wa-items-center'>
-            <div class='wa-min-w-16'>⬇ ${format.format(data.minOf { accessor(it) })}</div>
-            <div class='wa-min-w-16'>⬆ ${format.format(data.maxOf { accessor(it) })}</div>
-        </div>
-    </div>
+private fun format(
+  data: List<Data>,
+  icon: String,
+  colour: String,
+  title: String,
+  format: String,
+  unit: String,
+  accessor: (Data) -> Double
+) = """
+<wa-card with-footer class='card-overview' style='max-width: 20rem'>
+<wa-icon name='$icon' style='$colour'></wa-icon>
+<h2 class='wa-heading-l'>$title</h2>
+<p class='wa-body-xl'>${format.format(accessor(data.last()))}$unit</p>
+
+<div slot='footer' class='wa-split'>
+<p class='wa-body-s'>⬇ ${format.format(data.minOf { accessor(it) })}$unit</p>
+<p class='wa-body-s'>⬆ ${format.format(data.maxOf { accessor(it) })}$unit</p>
 </div>
-""".trimIndent()
+</wa-card>
+"""
+        .trimIndent()
