@@ -4,10 +4,11 @@ import com.diozero.util.Diozero
 import gg.jte.ContentType.Html
 import gg.jte.TemplateEngine
 import gg.jte.resolve.DirectoryCodeResolver
-import io.ktor.server.application.*
-import io.ktor.server.cio.*
-import io.ktor.server.engine.*
-import io.ktor.server.jte.*
+import io.ktor.server.application.install
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.addShutdownHook
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.jte.Jte
 import java.nio.file.Paths
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds

@@ -34,11 +34,9 @@ import uk.co.coroutines.enviropi.i2c.FocussedBitField.Companion.asShort
 import uk.co.coroutines.enviropi.i2c.IBitField
 import uk.co.coroutines.enviropi.i2c.IMutableRegister
 import uk.co.coroutines.enviropi.i2c.IRegister
-import uk.co.coroutines.enviropi.i2c.IntRegister
 import uk.co.coroutines.enviropi.i2c.LookupBitField.Companion.asBoolean
 import uk.co.coroutines.enviropi.i2c.LookupBitField.Companion.lookup
 import uk.co.coroutines.enviropi.i2c.MutableByteRegister
-import uk.co.coroutines.enviropi.i2c.MutableIntRegister
 import uk.co.coroutines.enviropi.i2c.MutableShortRegister
 import uk.co.coroutines.enviropi.i2c.ShortRegister
 import uk.co.coroutines.enviropi.i2c.read
