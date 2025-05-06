@@ -29,6 +29,7 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
   val templateEngine: TemplateEngine
   when (mode) {
     "mock" -> {
+      System.setProperty("io.ktor.development", "true")
       sensorFactory = ISensorFactory.mock
       displayFactory = IDisplayFactory.swing
       templateEngine = TemplateEngine.create(DirectoryCodeResolver(Paths.get("src/main/jte")), Html)
@@ -46,7 +47,7 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
 
   info { "Launching server" }
 
-  val oneDayData =
+  val data =
       sensor.dataFlow
           .runningFold(persistentListOf<Data>()) { data, value ->
             val now = Clock.System.now()
@@ -65,10 +66,10 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
   }
 
   embeddedServer(CIO, 8080) {
-    install(Jte) { this.templateEngine = templateEngine }
+        install(Jte) { this.templateEngine = templateEngine }
 
-    routing(oneDayData)
-  }
+        routing(data)
+      }
       .apply {
         addShutdownHook {
           runCatching { sensor.close() }
@@ -80,4 +81,3 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
       }
       .startSuspend()
 }
-

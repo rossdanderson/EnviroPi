@@ -12,7 +12,9 @@ plugins {
   application
 }
 
-application { mainClass.set("uk.co.coroutines.enviropi.ApplicationKt") }
+application { mainClass.set("uk.co.coroutines.enviropi.ApplicationKt")
+
+}
 
 kotlin { compilerOptions { jvmTarget.set(JVM_17) } }
 
