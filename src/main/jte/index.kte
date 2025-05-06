@@ -1,22 +1,24 @@
 <!DOCTYPE html>
-<html lang='en'>
+<html lang="en">
 <head>
-    <link rel='stylesheet'
-          href='https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/styles/themes/matter.css'/>
-    <link rel='stylesheet'
-          href='https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/styles/utilities.css'/>
-    <script type='module'
-            src='https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/webawesome.loader.js'></script>
-    <script src='https://unpkg.com/htmx.org@2.0.4'
-            integrity='sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+'
-            crossorigin='anonymous'></script>
+    <link rel="stylesheet"
+          href="https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/styles/themes/matter.css"/>
+    <link rel="stylesheet"
+          href="https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/styles/utilities.css"/>
+    <script type="module"
+            src="https://early.webawesome.com/webawesome@3.0.0-alpha.12/dist/webawesome.loader.js"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"
+            integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
+            crossorigin="anonymous"></script>
 
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EnviroPi</title>
 </head>
 <body>
-<h1 class='wa-heading-2xl' slot='header'>EnviroPi</h1>
-<div hx-trigger='load' hx-get='/table' hx-swap='outerHTML'></div>
+<wa-page>
+    <h1 class="wa-heading-2xl" slot="header">EnviroPi</h1>
+    <div hx-trigger="load" hx-get="/table" hx-swap="outerHTML"></div>
+</wa-page>
 </body>
 </html>

@@ -8,6 +8,9 @@ import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.jte.*
+import java.nio.file.Paths
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.coroutineScope
@@ -18,9 +21,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import org.tinylog.Logger.info
 import uk.co.coroutines.enviropi.ui.routing
-import java.nio.file.Paths
-import kotlin.time.Duration.Companion.days
-import kotlin.time.Duration.Companion.seconds
 
 suspend fun main(args: Array<String>): Unit = coroutineScope {
   val mode = args.getOrNull(0)

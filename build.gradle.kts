@@ -12,9 +12,7 @@ plugins {
   application
 }
 
-application { mainClass.set("uk.co.coroutines.enviropi.ApplicationKt")
-
-}
+application { mainClass.set("uk.co.coroutines.enviropi.ApplicationKt") }
 
 kotlin { compilerOptions { jvmTarget.set(JVM_17) } }
 
@@ -35,6 +33,7 @@ dependencies {
   implementation("com.diozero:diozero-core:1.4.1")
   implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.8")
   implementation("gg.jte:jte-kotlin:3.2.1")
+  implementation("org.jetbrains.kotlinx:kandy-lets-plot:0.8.0")
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
 }

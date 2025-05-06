@@ -4,4 +4,5 @@
 **/out/
 kotlin-js-store
 *.log
+*.log.gz
 jte-classes
