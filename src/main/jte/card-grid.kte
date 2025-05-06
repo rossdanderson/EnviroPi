@@ -1,0 +1,32 @@
+@import uk.co.coroutines.enviropi.ui.Card
+
+@param cards: List<Card>
+
+<div class='wa-grid' style='--min-column-size: 16rem' hx-trigger='load delay:1s' hx-get='/table' hx-swap='outerHTML'>
+    @for(card in cards)
+        <wa-card with-footer class='card-overview'>
+            <div class='wa-flank'>
+                <wa-icon fixed-width='${true}' style='color: var(${card.colour})' class='wa-heading-xl'
+                         name='${card.icon}'></wa-icon>
+                <h2 class='wa-heading-l'
+                    style='overflow: hidden; text-wrap: nowrap; text-overflow: ellipsis'>${card.title}</h2>
+            </div>
+
+            <p style='text-wrap: nowrap; text-overflow: ellipsis' class='wa-body-xl'>${card.current} <span
+                        class='wa-body-l'>${card.unit}</span></p>
+
+            <div slot='footer' class='wa-split'>
+                <div class='wa-flank'>
+                    <wa-icon fixed-width='${true}' class='wa-body-s' name='chevron-down'></wa-icon>
+                    <p class='wa-body-s' style='text-wrap: nowrap'>${card.min} <span
+                                class='wa-body-xs'>${card.unit}</span></p>
+                </div>
+                <div class='wa-flank'>
+                    <wa-icon fixed-width='${true}' class='wa-body-s' name='chevron-up'></wa-icon>
+                    <p class='wa-body-s' style='text-wrap: nowrap'>${card.max} <span
+                                class='wa-body-xs'>${card.unit}</span></p>
+                </div>
+            </div>
+        </wa-card>
+    @endfor
+</div>

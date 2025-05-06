@@ -3,3 +3,5 @@
 **/build/
 **/out/
 kotlin-js-store
+*.log
+jte-classes

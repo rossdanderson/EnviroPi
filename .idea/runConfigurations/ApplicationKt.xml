@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="ApplicationKt" type="KtorApplicationConfigurationType" factoryName="Ktor" nameIsGenerated="true">
-    <option name="MAIN_CLASS_NAME" value="uk.co.coroutines.enviropi.client.ApplicationKt" />
-    <module name="EnviroPi.client.main" />
+    <option name="MAIN_CLASS_NAME" value="uk.co.coroutines.enviropi.ApplicationKt" />
+    <module name="EnviroPi.main" />
     <option name="PROGRAM_PARAMETERS" value="mock" />
     <extension name="coverage">
       <pattern>
@@ -12,7 +12,7 @@
     <option name="alternativeJrePath" />
     <option name="alternativeJrePathEnabled" value="false" />
     <option name="includeProvidedScope" value="false" />
-    <option name="mainClass" value="uk.co.coroutines.enviropi.client.ApplicationKt" />
+    <option name="mainClass" value="uk.co.coroutines.enviropi.ApplicationKt" />
     <option name="passParentEnvs" value="true" />
     <option name="programParameters" value="mock" />
     <option name="shortenCommandLine" />
