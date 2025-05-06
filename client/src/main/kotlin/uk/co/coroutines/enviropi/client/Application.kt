@@ -43,7 +43,8 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
   val oneDayData =
       sensor.dataFlow
           .runningFold(persistentListOf<Data>()) { data, value ->
-            val earlier = Clock.System.now() - 1.days
+            val now = Clock.System.now()
+            val earlier = now - 1.days
             data.mutate {
               if (it.isNotEmpty()) while (it.first().instant < earlier) it.removeFirst()
               it.add(value)
@@ -94,11 +95,11 @@ suspend fun main(args: Array<String>): Unit = coroutineScope {
             call.respondText(contentType = Html) {
               // language=HTML
               """
-<div class='wa-grid' style='--min-column-size: 14rem' hx-trigger='load delay:1s' hx-get='/table' hx-swap='outerHTML'>
-    ${format(oneDayData.value, "temperature-half", "--wa-color-red-20", "Temperature", "%.2f" ,"°C", Data::temperature)}
-    ${format(oneDayData.value, "droplet", "--wa-color-blue-20", "Humidity", "%.2f","%", Data::humidity)}
-    ${format(oneDayData.value, "sun", "--wa-color-yellow-20", "Light", "%.2f", "lux", Data::lux)}
-    ${format(oneDayData.value, "gauge", "--wa-color-green-20", "Pressure", "%.2f", "hPa", Data::pressure)}
+<div class='wa-grid' style='--min-column-size: 16rem' hx-trigger='load delay:1s' hx-get='/table' hx-swap='outerHTML'>
+    ${format(oneDayData.value, "temperature-half", "--wa-color-red-50", "Temperature", "°C", Data::temperature)}
+    ${format(oneDayData.value, "droplet", "--wa-color-blue-60", "Humidity", "%", Data::humidity)}
+    ${format(oneDayData.value, "sun", "--wa-color-yellow-80", "Light", "lux", Data::lux)}
+    ${format(oneDayData.value, "gauge", "--wa-color-green-60", "Pressure", "hPa", Data::pressure)}
 </div>
           """
                   .trimIndent()
@@ -124,18 +125,26 @@ private fun format(
   icon: String,
   colour: String,
   title: String,
-  format: String,
   unit: String,
   accessor: (Data) -> Double
 ) = """
-<wa-card with-footer class='card-overview' style='max-width: 20rem'>
-<wa-icon name='$icon' style='$colour'></wa-icon>
-<h2 class='wa-heading-l'>$title</h2>
-<p class='wa-body-xl'>${format.format(accessor(data.last()))}$unit</p>
+<wa-card with-footer class='card-overview'>
+<div class='wa-flank'>
+  <wa-icon fixed-width style='color: var($colour)' class='wa-heading-xl' name='$icon'></wa-icon>
+  <h2 class='wa-heading-l' style='overflow: hidden; text-wrap: nowrap; text-overflow: ellipsis' >$title</h2>
+</div>
+
+<p style='text-wrap: nowrap; text-overflow: ellipsis'  class='wa-body-xl'>${"%.2f".format(accessor(data.last()))} <span class='wa-body-l'>$unit</span></p>
 
 <div slot='footer' class='wa-split'>
-<p class='wa-body-s'>⬇ ${format.format(data.minOf { accessor(it) })}$unit</p>
-<p class='wa-body-s'>⬆ ${format.format(data.maxOf { accessor(it) })}$unit</p>
+  <div class='wa-flank'>
+    <wa-icon fixed-width class='wa-body-s' name='chevron-down'></wa-icon>
+    <p class='wa-body-s' style='text-wrap: nowrap' >${"%.2f".format(data.minOf { accessor(it) })} <span class='wa-body-xs'>$unit</span></p>
+  </div>
+  <div class='wa-flank'>
+    <wa-icon fixed-width class='wa-body-s' name='chevron-up'></wa-icon>
+    <p class='wa-body-s' style='text-wrap: nowrap' >${"%.2f".format(data.maxOf { accessor(it) })} <span class='wa-body-xs'>$unit</span></p>
+  </div>
 </div>
 </wa-card>
 """
