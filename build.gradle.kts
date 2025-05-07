@@ -25,6 +25,8 @@ version = "1.0"
 repositories { mavenCentral() }
 
 dependencies {
+  compileOnly("gg.jte:jte-kotlin:3.2.1")
+
   implementation(libs.bundles.kotlinx.datetime)
   //  implementation(libs.bundles.kotlinx.serialization)
   implementation(libs.bundles.kotlinx.coroutines)
@@ -32,8 +34,12 @@ dependencies {
   implementation(libs.bundles.ktor.server)
   implementation("com.diozero:diozero-core:1.4.1")
   implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.8")
-  implementation("gg.jte:jte-kotlin:3.2.1")
-  implementation("org.jetbrains.kotlinx:kandy-lets-plot:0.8.0")
+  implementation("org.jetbrains.kotlinx:kandy-lets-plot:0.8.0") {
+    exclude("org.jetbrains.kotlinx", "dataframe-excel")
+    exclude("org.jetbrains.kotlinx", "dataframe-jdbc")
+    exclude("org.jetbrains.kotlinx", "dataframe-arrow")
+    exclude("org.jetbrains.kotlinx", "dataframe-openapi")
+  }
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
 }
