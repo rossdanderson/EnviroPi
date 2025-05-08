@@ -10,6 +10,7 @@ import org.jetbrains.kotlinx.dataframe.api.groupBy
 import org.jetbrains.kotlinx.dataframe.api.last
 import org.jetbrains.kotlinx.dataframe.api.max
 import org.jetbrains.kotlinx.dataframe.api.min
+import org.jetbrains.kotlinx.dataframe.api.toColumnOf
 import org.jetbrains.kotlinx.kandy.dsl.plot
 import org.jetbrains.kotlinx.kandy.letsplot.export.toSVG
 import org.jetbrains.kotlinx.kandy.letsplot.feature.layout
@@ -34,13 +35,15 @@ data class Card(
       df: DataFrame<*>,
       column: DataColumn<Double>
     ): Any {
+      val open = "open".toColumnOf<Double>()
+
       val svg =
-          df.groupBy { get("timeKey") }
-              .aggregate { get(column).first() into "open" }
+          df.groupBy { get(timeKey) }
+              .aggregate { get(column).first() into open }
               .plot {
                 line {
-                  x("timeKey")
-                  y("open")
+                  x(timeKey)
+                  y(open)
                 }
                 layout {
                   size = 214 to 100
