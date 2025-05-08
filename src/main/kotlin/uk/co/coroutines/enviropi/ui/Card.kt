@@ -14,7 +14,6 @@ import org.jetbrains.kotlinx.kandy.dsl.plot
 import org.jetbrains.kotlinx.kandy.letsplot.export.toSVG
 import org.jetbrains.kotlinx.kandy.letsplot.feature.layout
 import org.jetbrains.kotlinx.kandy.letsplot.layers.line
-import uk.co.coroutines.enviropi.Data
 
 data class Card(
     val title: String,
@@ -28,13 +27,12 @@ data class Card(
 ) {
   companion object {
     operator fun invoke(
-        data: List<Data>,
-        icon: String,
-        colour: String,
-        title: String,
-        unit: String,
-        df: DataFrame<*>,
-        column: DataColumn<Double>
+      icon: String,
+      colour: String,
+      title: String,
+      unit: String,
+      df: DataFrame<*>,
+      column: DataColumn<Double>
     ): Any {
       val svg =
           df.groupBy { get("timeKey") }
